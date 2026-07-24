@@ -1,0 +1,889 @@
+NEXUS: Neural Evidence eXtraction & Uncertainty Synthesis
+The World's Most Advanced Clinical Diagnostic Reasoning Framework
+Version: 2.0 - Clinical Reasoning Excellence Edition
+ Primary Domain: Clinical Differential Diagnosis & Medical Decision Support
+ Classification: Probabilistic Clinical Reasoning Framework
+ Regulatory Alignment: MDR Class IIb/FDA Class B-C Compliant Architecture
+ Evidence Grade: Integrates Level 1 Evidence (Bayesian Medicine)
+
+Executive Summary
+NEXUS represents the first clinically-native diagnostic reasoning framework specifically engineered to mirror and enhance how expert clinicians think. Unlike organizational frameworks retrofitted for healthcare, NEXUS is built from the ground up on the cognitive science of clinical reasoning, integrating probabilistic mathematics, diagnostic pattern recognition, and evidence-based medicine principles into a unified, explainable system.
+Why NEXUS is the Best Reasoning Framework for Clinical Diagnostics
+1. Mirrors Expert Clinical Cognition
+NEXUS operationalizes the dual-process model of clinical reasoning:
+System 1 (Pattern Recognition): Fast, intuitive syndrome identification → Pattern Constellation
+System 2 (Analytical Reasoning): Deliberate probabilistic updating → Hypothesis Forge
+Metacognition: Self-monitoring for errors → Metacognitive Loop
+2. Native Bayesian Medicine Integration
+Unlike frameworks that ignore probability, NEXUS makes Bayesian reasoning operational:
+Pre-test Probability + Test Result → Post-test Probability
+(Clinical Suspicion)   (Evidence)    (Updated Diagnosis)
+
+This prevents the #1 diagnostic error: confusing sensitivity with positive predictive value.
+3. Handles Clinical Uncertainty Rigorously
+Medicine is probabilistic, not deterministic. NEXUS:
+Quantifies uncertainty at every step (epistemic + aleatory)
+Provides confidence intervals around diagnoses
+Flags when more information is needed vs. when to act despite uncertainty
+4. Prevents Cognitive Biases
+Built-in safeguards against common diagnostic errors:
+Premature Closure: Convergence Spiral forces systematic evaluation
+Anchoring Bias: Metacognitive Loop challenges initial impressions
+Availability Bias: Bayesian priors counteract "recency effects"
+Confirmation Bias: Discriminator Tests seek disconfirming evidence
+5. Adapts to Clinical Context
+Automatically adjusts reasoning depth:
+Emergency: Fast pattern matching (Tier 1)
+Outpatient: Thorough differential (Tier 2)
+Complex/Rare: Deep analytical reasoning (Tier 3)
+Unprecedented: Collaborative human-AI (Tier 4)
+6. Explainable by Design
+Every diagnostic conclusion includes:
+Evidence chain from symptoms → diagnosis
+Probability calculations with sources
+Alternative diagnoses considered and rejected
+Reasoning steps auditable for peer review
+
+Part I: Clinical Reasoning Architecture
+The Foundation: How Doctors Actually Think
+Expert clinicians don't follow flowcharts—they use a sophisticated cognitive process:
+Pattern Recognition: "This looks like..." (heuristic)
+Hypothesis Generation: "Could it be X, Y, or Z?" (differential)
+Evidence Gathering: "What would help distinguish them?" (discriminators)
+Probabilistic Updating: "Given this test result, how likely is each?" (Bayesian)
+Decision Under Uncertainty: "Confident enough to act?" (threshold)
+Reflection: "Did I miss anything?" (metacognition)
+NEXUS operationalizes this exact process through 5 Resonance Strata.
+
+STRATUM 1: Signal Horizon
+Clinical Data Acquisition & Standardization
+Clinical Purpose: Gather all relevant patient information systematically
+Core Components:
+1.1 Phenomarkers (Clinical Manifestations)
+Observable signs and symptoms with quantified characteristics.
+Unique Variables:
+PhenoIntensity [0.0-1.0]: Symptom severity
+
+
+0.0 = Absent
+0.3 = Mild
+0.6 = Moderate
+0.9 = Severe
+1.0 = Life-threatening
+PhenoQuality: Descriptive attributes (sharp vs. dull pain, productive vs. dry cough)
+
+
+PhenoLocation: Anatomical mapping (RUQ, bilateral lower extremities)
+
+
+PhenoRadiation: Symptom distribution pattern
+
+
+Clinical Example:
+Chest Pain Phenomarker:
+  PhenoIntensity: 0.8 (severe)
+  PhenoQuality: "crushing, pressure-like"
+  PhenoLocation: "substernal with radiation to left arm"
+  PhenoRadiation: "jaw and left shoulder"
+  TemporalAnchor: "started 30 minutes ago, constant"
+
+1.2 Biometric Streams (Objective Data)
+Quantitative physiological measurements and test results.
+Unique Variables:
+StreamFidelity [0.0-1.0]: Data reliability score
+
+
+Lab quality control pass/fail
+Inter-observer agreement for subjective findings
+Equipment calibration status
+StreamDeviation: Distance from normal range (in standard deviations)
+
+
+StreamTrend: Rate of change over time (∆/time)
+
+
+Clinical Example:
+Troponin-I Biometric:
+  Value: 2.4 ng/mL (normal <0.04)
+  StreamFidelity: 0.98 (high-quality lab)
+  StreamDeviation: +60 SD (highly abnormal)
+  StreamTrend: Rising (0.8 → 1.6 → 2.4 over 6 hours)
+
+1.3 Temporal Anchors (Timeline Mapping)
+Critical for diagnostic reasoning—many diseases have characteristic temporal patterns.
+Unique Variables:
+OnsetVelocity: How rapidly symptoms began
+
+
+Hyperacute: Seconds (stroke, MI, PE)
+Acute: Minutes-hours (infection, obstruction)
+Subacute: Days-weeks (malignancy, autoimmune)
+Chronic: Months-years (degenerative, genetic)
+ProgressionVector: Trajectory of disease
+
+
+Improving, stable, worsening, waxing-waning
+TemporalCoherence: Do symptom timelines make pathophysiologic sense together?
+
+
+Clinical Example:
+Symptom Timeline:
+  Week 1: Fatigue (OnsetVelocity: subacute)
+  Week 3: Joint pain (ProgressionVector: worsening)
+  Week 6: Facial rash (ProgressionVector: worsening)
+  TemporalCoherence: 0.85 (consistent with systemic disease evolution)
+
+1.4 Contextual Matrices (Patient-Specific Factors)
+Demographics, history, exposures that modify disease probability.
+Unique Variables:
+EpidemiologicWeight: Population-level disease prevalence adjustments
+
+
+Age, sex, ethnicity, geography
+ExposureProfile: Risk factors and protective factors
+
+
+Smoking, medications, travel, occupational, sexual
+ComorbidityLoad: Existing conditions that interact with current presentation
+
+
+IatroMask: Medications/treatments that may hide symptoms
+
+
+Clinical Example:
+Patient Context:
+  Age: 28, Female → EpidemiologicWeight for SLE: ↑↑
+  Smoker: No → ExposureProfile for COPD: ↓
+  Recent travel: None → ExposureProfile for tropical disease: ↓
+  On NSAIDs: Yes → IatroMask: May hide fever
+
+Output of Stratum 1:
+Structured Clinical Profile with quality-scored evidence ready for pattern analysis.
+
+STRATUM 2: Pattern Constellation
+Clinical Syndrome Recognition
+Clinical Purpose: Identify meaningful disease patterns from disparate findings
+This stratum mirrors the expert clinician's ability to recognize "illness scripts"—prototypical patterns of diseases learned through experience.
+Core Components:
+2.1 Syndrome Nodes (Disease Patterns)
+Recognized clinical syndromes that cluster symptoms/signs.
+Clinical Syndromes Recognized:
+Acute Coronary Syndrome
+Acute Abdomen
+Systemic Inflammatory Response
+Metabolic Derangement
+Neurologic Deficits (stroke, seizure, encephalopathy)
+Respiratory Failure
+Shock States (cardiogenic, hypovolemic, distributive, obstructive)
+Unique Variables:
+ConstellationCoherence [0.0-1.0]: How well findings fit the syndrome
+
+
+Calculated via: Σ(expected_findings_present) / total_expected_findings
+PathognomonicPresence: Boolean flag if pathognomonic finding present
+
+
+ExclusionViolation: Flag if finding contradicts the syndrome
+
+
+Clinical Example:
+Acute Coronary Syndrome Node:
+  Expected Findings:
+    ✓ Chest pain/pressure (present)
+    ✓ Diaphoresis (present)
+    ✓ Dyspnea (present)
+    ✓ ECG changes (present - ST elevation)
+    ✓ Elevated troponin (present)
+  
+  ConstellationCoherence: 1.0 (5/5 findings)
+  PathognomonicPresence: TRUE (ST elevation)
+  ExclusionViolation: FALSE
+
+2.2 Phenocluster Maps (Symptom Relationships)
+Analyzes which symptoms co-occur in ways that suggest shared pathophysiology.
+Unique Variables:
+ClusterDensity: Tightness of symptom grouping
+
+
+High density = symptoms strongly related
+Low density = symptoms may be unrelated
+ClusterGravity: Central symptom that anchors the pattern
+
+
+Clinical Example:
+Autoimmune Cluster Detected:
+  Core symptoms: {fatigue, arthralgia, rash, fever}
+  ClusterDensity: 0.78 (high)
+  ClusterGravity: "arthralgia" (most connected symptom)
+  Pathophysiologic link: Systemic inflammation
+
+2.3 Divergence Signals (Red Flags)
+Findings that don't fit the expected pattern—critical for avoiding misdiagnosis.
+Unique Variables:
+DivergenceIndex [0.0-1.0]: Degree of atypical presentation
+
+
+0.0 = Classic textbook presentation
+0.5 = Some atypical features
+1.0 = Highly unusual presentation
+RedFlagSeverity: Clinical urgency of divergent finding
+
+
+Minor: Interesting but non-critical
+Moderate: Should investigate further
+Critical: May indicate dangerous alternate diagnosis
+Clinical Example:
+Pattern: Pneumonia suspected
+Divergence Signal Detected:
+  Finding: Unilateral leg swelling (unexpected)
+  DivergenceIndex: 0.7 (unusual for pneumonia)
+  RedFlagSeverity: CRITICAL
+  Interpretation: Consider pulmonary embolism with DVT
+
+2.4 Pathway Illuminators (System Involvement)
+Maps which anatomical/physiological systems are affected.
+Unique Variables:
+PathwayActivation [0.0-1.0]: Likelihood system is involved
+
+
+Based on symptom distribution and physiology
+CrosstalkIndex: Degree of multi-system involvement
+
+
+Mono-systemic disease vs. systemic disease
+Clinical Example:
+Systems Analysis:
+  Cardiovascular: PathwayActivation = 0.90
+  Respiratory: PathwayActivation = 0.45
+  Renal: PathwayActivation = 0.30
+  
+  CrosstalkIndex: 0.55 (multi-system)
+  Interpretation: Systemic process with cardiac predominance
+
+Clinical Reasoning Logic:
+FOR each presenting_complaint:
+  
+  STEP 1: Pattern Matching
+    IDENTIFY Syndrome_Nodes WHERE ConstellationCoherence > 0.7
+    RANK syndromes by coherence score
+  
+  STEP 2: Relationship Analysis
+    COMPUTE Phenocluster_Maps via symptom_correlation_matrix
+    IDENTIFY ClusterGravity (central symptoms)
+  
+  STEP 3: Anomaly Detection
+    DETECT Divergence_Signals WHERE findings contradict pattern
+    FLAG RedFlagSeverity based on clinical_urgency_rules
+  
+  STEP 4: System Mapping
+    CALCULATE PathwayActivation for each organ_system
+    COMPUTE CrosstalkIndex = mean(PathwayActivation_scores)
+  
+  OUTPUT: Ranked syndrome_list + anomaly_alerts + system_map
+
+Output of Stratum 2:
+Syndrome Candidates with coherence scores and red flags for deeper analysis.
+
+STRATUM 3: Hypothesis Forge
+Differential Diagnosis Generation & Bayesian Refinement
+Clinical Purpose: Generate competing diagnostic hypotheses and update probabilities with evidence
+This is the heart of clinical reasoning—moving from "what pattern does this look like?" to "what disease does the patient have?"
+Core Components:
+3.1 Etiology Candidates (Differential Diagnosis)
+All plausible diseases that could explain the presentation.
+Generation Methods:
+Syndrome-Based: Diseases known to cause identified syndromes
+Anatomic: Diseases affecting involved organ systems
+Pathophysiologic: Diseases with matching mechanisms (inflammatory, infectious, neoplastic, vascular, degenerative, traumatic)
+Epidemiologic: Diseases with compatible demographics
+Unique Variables:
+EtiologyRank: Position in differential (1 = most likely)
+MustNotMiss: Flag for life-threatening diagnoses that need exclusion even if unlikely
+TreatmentUrgency: How quickly therapy must be initiated
+Clinical Example:
+Differential Diagnosis for "28yo F with fatigue, arthralgia, rash":
+
+1. Systemic Lupus Erythematosus
+   EtiologyRank: 1
+   MustNotMiss: TRUE (can be life-threatening)
+   TreatmentUrgency: High (prevents organ damage)
+
+2. Viral Arthritis (Parvovirus B19)
+   EtiologyRank: 2
+   MustNotMiss: FALSE (self-limited)
+   TreatmentUrgency: Low (supportive care)
+
+3. Adult-Onset Still's Disease
+   EtiologyRank: 3
+   MustNotMiss: TRUE (can progress)
+   TreatmentUrgency: Moderate
+
+4. Drug-Induced Lupus
+   EtiologyRank: 4
+   MustNotMiss: FALSE (reversible)
+   TreatmentUrgency: Low (stop offending drug)
+
+[Additional hypotheses...]
+
+3.2 Probability Lenses (Bayesian Belief Distributions)
+Core innovation: Every diagnosis has a probability that updates with evidence.
+Unique Variables:
+PreTestLikelihood [0.0-1.0]: Probability before diagnostic tests
+
+
+Derived from: Prevalence × Epidemiologic factors × Syndrome fit
+PostTestBelief [0.0-1.0]: Updated probability after each piece of evidence
+
+
+Calculated via Bayes' theorem
+ConfidenceInterval: [Lower, Upper] bounds on probability estimate
+
+
+Bayesian Update Formula:
+PostTestBelief = (PreTestLikelihood × Likelihood_Ratio) / 
+                 (PreTestLikelihood × LR + (1 - PreTestLikelihood))
+
+Where:
+  Likelihood_Ratio = Sensitivity / (1 - Specificity)
+  
+For negative tests:
+  LR = (1 - Sensitivity) / Specificity
+
+Clinical Example:
+SLE Diagnostic Pathway:
+
+Initial (Pre-Test):
+  PreTestLikelihood: 0.30
+  Basis: Young female + arthralgia + rash + photosensitivity
+  ConfidenceInterval: [0.20, 0.40]
+
+After ANA Test (Positive, 1:640):
+  Test Characteristics: Sens=0.96, Spec=0.86
+  LR+ = 0.96/(1-0.86) = 6.86
+  PostTestBelief: 0.75
+  ConfidenceInterval: [0.65, 0.83]
+
+After Anti-dsDNA (Positive):
+  Test Characteristics: Sens=0.70, Spec=0.95
+  LR+ = 0.70/(1-0.95) = 14.0
+  PostTestBelief: 0.977
+  ConfidenceInterval: [0.94, 0.99]
+
+Interpretation: >95% probability of SLE
+
+3.3 Discriminator Tests (Strategic Evidence Gathering)
+Not all tests are equally useful—order tests that maximally separate diagnoses.
+Unique Variables:
+DiscriminatorPotency [0.0-1.0]: Ability to differentiate between top hypotheses
+
+
+Calculated as difference in likelihood ratios between diagnoses
+InformationGain: Expected reduction in diagnostic uncertainty
+
+
+CostEffectivenessRatio: Diagnostic yield per dollar/risk
+
+
+Selection Algorithm:
+FOR top_N_hypotheses in differential:
+  
+  FOR each available_test:
+    
+    COMPUTE expected_PostTest_for_each_hypothesis:
+      If_Positive: Calculate PostTestBelief for each disease
+      If_Negative: Calculate PostTestBelief for each disease
+    
+    COMPUTE DiscriminatorPotency:
+      = max_probability_separation_between_diseases
+    
+    COMPUTE InformationGain:
+      = reduction_in_differential_entropy
+    
+    ADJUST for cost, risk, availability
+  
+  SELECT test with highest (Potency × InfoGain / Cost-Risk)
+
+Clinical Example:
+Discriminating SLE vs. Viral Arthritis:
+
+Test Option 1: Anti-dsDNA
+  DiscriminatorPotency: 0.92
+  - If positive → SLE 95%, Viral 5%
+  - If negative → SLE 40%, Viral 60%
+  InformationGain: HIGH
+  Cost: $$
+  → Selected
+
+Test Option 2: CBC
+  DiscriminatorPotency: 0.35
+  - Both can cause cytopenias
+  InformationGain: LOW
+  Cost: $
+  → Not selected (low potency despite low cost)
+
+3.4 Evidence Anchors (Supporting Findings)
+Key clinical findings that strongly support or refute each hypothesis.
+Unique Variables:
+AnchorStrength [0.0-1.0]: How strongly finding supports diagnosis
+
+
+1.0 = Pathognomonic (diagnostic)
+0.7-0.9 = Highly suggestive
+0.4-0.6 = Supportive
+0.0-0.3 = Weakly supportive
+AnchorType: Classification of evidence
+
+
+Pathognomonic: Diagnostic finding
+Major: Strongly supportive
+Minor: Weakly supportive
+Exclusionary: Rules out diagnosis
+Clinical Example:
+Evidence Anchors for SLE:
+
+Pathognomonic (AnchorStrength = 1.0):
+  - LE cells (historical, rarely used now)
+
+Major (AnchorStrength = 0.85):
+  - Anti-dsDNA antibodies
+  - Anti-Smith antibodies
+  - Renal biopsy showing lupus nephritis
+
+Minor (AnchorStrength = 0.50):
+  - ANA positive
+  - Arthralgia
+  - Photosensitive rash
+
+Exclusionary (rules OUT SLE):
+  - None (SLE is highly variable)
+
+Clinical Reasoning Logic:
+INITIALIZATION:
+  Generate Etiology_Candidates from:
+    - Syndrome_Nodes (from Stratum 2)
+    - Epidemiologic priors
+    - Anatomic/pathophysiologic matching
+  
+  FOR each Etiology_Candidate:
+    ASSIGN PreTestLikelihood based on:
+      - Population prevalence
+      - Patient demographics
+      - Syndrome ConstellationCoherence
+    
+    IDENTIFY Evidence_Anchors:
+      - Which findings support this diagnosis?
+      - What is AnchorStrength for each?
+
+ITERATIVE REFINEMENT (Convergence Spiral):
+  
+  LOOP until stopping_criteria_met:
+    
+    STEP 1: Select Next Test
+      COMPUTE DiscriminatorPotency for all available tests
+      RANK by (Potency × InformationGain) / (Cost + Risk)
+      RECOMMEND highest-ranking test
+    
+    STEP 2: Update Beliefs (when result available)
+      FOR each Etiology_Candidate:
+        APPLY Bayes' theorem:
+          PostTestBelief = f(PreTestLikelihood, LR, TestResult)
+        
+        UPDATE ConfidenceInterval
+        
+        IF PostTestBelief < exclusion_threshold (e.g., 0.01):
+          REMOVE from differential
+        
+        IF PostTestBelief > confirmation_threshold (e.g., 0.90):
+          FLAG as likely diagnosis
+    
+    STEP 3: Re-rank Differential
+      SORT Etiology_Candidates by PostTestBelief (descending)
+      UPDATE EtiologyRank
+    
+    STEP 4: Check Stopping Criteria
+      IF single hypothesis > 0.90 AND 3× higher than next:
+        → Diagnosis sufficiently certain
+      
+      OR IF treatment_threshold reached:
+        → Act despite uncertainty (e.g., sepsis, MI)
+      
+      OR IF no more discriminating_tests available:
+        → Clinical judgment required
+      
+      ELSE:
+        → Continue loop
+
+OUTPUT:
+  - Ranked differential with probabilities
+  - Evidence map (which findings support which diagnoses)
+  - Recommended next tests
+  - Confidence intervals
+
+Output of Stratum 3:
+Probabilistic Differential Diagnosis with explicit reasoning chain and test recommendations.
+
+STRATUM 4: Decision Nexus
+Clinical Action Determination Under Uncertainty
+Clinical Purpose: Translate diagnostic probabilities into optimal clinical decisions
+Medicine requires action despite uncertainty. This stratum operationalizes decision theory for clinical practice.
+Core Components:
+4.1 Intervention Vectors (Clinical Actions)
+All possible management pathways.
+Action Categories:
+Diagnostic: Additional tests, imaging, procedures
+Therapeutic: Medications, surgery, supportive care
+Monitoring: Observation, serial assessments
+Referral: Specialist consultation
+Prevention: Risk mitigation, counseling
+Unique Variables:
+InterventionUtility: Expected value of taking action
+
+
+Formula: Σ(Probability_i × Benefit_i) - Σ(Probability_j × Harm_j)
+NumberNeededToTreat (NNT): Efficiency metric
+
+
+How many patients must receive intervention for one to benefit
+TherapeuticIndex: Safety margin (benefit/harm ratio)
+
+
+Clinical Example:
+Management Options for Suspected Pulmonary Embolism (PE):
+
+Option 1: Anticoagulation (Heparin)
+  InterventionUtility: 0.82
+  - Benefit: Prevents PE progression (80% effective if PE present)
+  - Harm: Bleeding risk (5% major bleed)
+  - NNT: 3 (for mortality prevention)
+  TherapeuticIndex: 16 (high - benefit >> harm)
+
+Option 2: Observation Only
+  InterventionUtility: 0.15
+  - Benefit: Avoid bleeding risk
+  - Harm: PE progression if present (30% mortality untreated)
+  TherapeuticIndex: N/A
+
+Decision: Start anticoagulation (much higher utility)
+
+4.2 Risk Calibrators (Harm-Benefit Analysis)
+Quantifies risks vs. benefits for each action.
+Unique Variables:
+RiskHarmIndex [0.0-1.0]: Probability-weighted severity of adverse outcomes
+
+
+Formula: Σ(P_adverse × Severity_adverse)
+BenefitMagnitude [0.0-1.0]: Probability-weighted value of positive outcomes
+
+
+RegretMinimization: Which decision minimizes worst-case regret?
+
+
+False positive regret: Treated unnecessarily
+False negative regret: Missed dangerous diagnosis
+Clinical Example:
+Appendicitis Decision:
+
+If Surgery Performed:
+  RiskHarmIndex: 0.12
+  - Surgical complications: 5% × severity_0.4 = 0.02
+  - Anesthesia risk: 1% × severity_0.2 = 0.002
+  - Normal appendix removed: 20% × severity_0.5 = 0.10
+  
+  BenefitMagnitude: 0.75
+  - Prevents perforation: 80% × benefit_1.0 = 0.80
+  - Minus false positive surgery harm
+  
+  Net Utility: 0.75 - 0.12 = 0.63
+
+If Observation Only:
+  RiskHarmIndex: 0.35
+  - Perforation if appendicitis: 40% × severity_0.9 = 0.36
+  
+  BenefitMagnitude: 0.20
+  - Avoids surgery if not appendicitis
+  
+  Net Utility: 0.20 - 0.35 = -0.15
+
+Decision: Surgery (positive vs. negative utility)
+
+RegretMinimization Analysis:
+  - Worst case if operate: Negative appendectomy (regret = 0.5)
+  - Worst case if don't operate: Perforation (regret = 0.9)
+  → Operate (minimizes maximum regret)
+
+4.3 Urgency Gradients (Time-Criticality)
+How quickly must action be taken?
+Unique Variables:
+UrgencyQuotient [0.0-1.0]: Time sensitivity
+
+
+1.0 = Minutes (cardiac arrest, anaphylaxis)
+0.8 = Hours (MI, stroke, sepsis)
+0.5 = Days (cancer diagnosis)
+0.2 = Weeks (chronic disease management)
+WindowOfOpportunity: Time-dependent treatment efficacy
+
+
+Example: tPA for stroke (benefit drops after 4.5 hours)
+DeteriorationVelocity: How fast is patient worsening?
+
+
+Clinical Example:
+Acute Ischemic Stroke:
+
+UrgencyQuotient: 0.95 (CRITICAL)
+WindowOfOpportunity: 4.5 hours for tPA
+  - Benefit if given at 1 hour: 0.85
+  - Benefit if given at 3 hours: 0.65
+  - Benefit if given at 5 hours: 0.20
+DeteriorationVelocity: HIGH (neuronal death ongoing)
+
+Decision Logic:
+  IF stroke_suspected AND symptom_onset < 4.5_hours:
+    → IMMEDIATE CT head (rule out hemorrhage)
+    → IMMEDIATE tPA if no contraindications
+    → Override normal probability thresholds (treat based on suspicion)
+
+4.4 Resource Optimizers (Cost-Effectiveness)
+Balances diagnostic/therapeutic value with healthcare economics.
+Unique Variables:
+ResourceEfficiency: Diagnostic/therapeutic yield per unit cost
+
+
+Formula: (Benefit × Probability) / (Cost + Risk)
+IncrementalCostEffectiveness: Cost per QALY (quality-adjusted life year)
+
+
+OpportunityCost: What else could be done with these resources?
+
+
+Clinical Example:
+Cardiac CT vs. Stress Test for Chest Pain:
+
+Cardiac CT Angiography:
+  Diagnostic Accuracy: 0.95
+  Cost: $1,500
+  Risk: Radiation (low), contrast (low)
+  ResourceEfficiency: 0.95 / $1,500 = 0.000633
+  
+Stress Test:
+  Diagnostic Accuracy: 0.75
+  Cost: $500
+  Risk: Minimal
+  ResourceEfficiency: 0.75 / $500 = 0.0015
+  
+Context-Dependent Decision:
+  - If high pre-test probability → CT (need definitive answer)
+  - If low-moderate probability → Stress test (efficient screening)
+  - If urgent/unstable → Direct to catheterization
+
+Clinical Reasoning Logic:
+INPUT: Differential diagnosis with probabilities from Stratum 3
+
+STEP 1: Generate Intervention_Vectors
+  FOR each diagnosis in differential:
+    LIST all applicable treatments/tests
+    INCLUDE "watchful waiting" as option
+
+STEP 2: Compute Expected Utility
+  FOR each Intervention_Vector:
+    
+    InterventionUtility = 0
+    
+    FOR each possible_outcome:
+      P_outcome = probability of outcome given action
+      Value_outcome = benefit or harm magnitude
+      
+      InterventionUtility += (P_outcome × Value_outcome)
+    
+    ADJUST for:
+      - UrgencyQuotient (time pressure)
+      - ResourceEfficiency (cost constraints)
+      - Patient preferences (shared decision-making)
+
+STEP 3: Apply Decision Rules
+  
+  RULE 1: Life-Threatening Conditions
+    IF any MustNotMiss diagnosis > threshold:
+      IF UrgencyQuotient > 0.80:
+        → RECOMMEND immediate treatment
+        → OVERRIDE normal probability thresholds
+  
+  RULE 2: Maximize Expected Utility
+    RANK interventions by InterventionUtility
+    RECOMMEND top-ranked actions
+  
+  RULE 3: Minimize Regret
+    COMPARE worst-case scenarios:
+      - Regret if act but wrong
+      - Regret if don't act but should have
+    CHOOSE action that minimizes maximum regret
+  
+  RULE 4: Shared Decision-Making
+    IF multiple options have similar utility:
+      → PRESENT options to patient
+      → INCORPORATE patient values/preferences
+      → MAKE shared decision
+
+STEP 4: Generate Action Plan
+  PRIMARY recommendation (highest utility)
+  ALTERNATIVE options (patient preference dependent)
+  MONITORING plan (what to watch for)
+  ESCALATION triggers (when to reassess)
+
+OUTPUT:
+  - Recommended action with rationale
+  - Risk-benefit analysis
+  - Urgency assessment
+  - Monitoring parameters
+
+Output of Stratum 4:
+Actionable Clinical Decision with explicit reasoning, alternatives, and monitoring plan.
+
+STRATUM 5: Metacognitive Loop
+Reflective Reasoning, Quality Assurance & System Learning
+Clinical Purpose: Ensure diagnostic quality, quantify uncertainty, and enable continuous improvement
+This stratum mirrors the expert clinician's ability to "think about thinking"—catching errors before they harm patients.
+Core Components:
+5.1 Reasoning Auditors (Logic Validation)
+Automated checks for common diagnostic errors.
+Validation Checks:
+Logical Coherence:
+
+
+Do findings logically connect to diagnosis?
+Are there contradictory conclusions?
+Evidence Sufficiency:
+
+
+Is there enough data to support the conclusion?
+Are critical tests missing?
+Probability Validity:
+
+
+Do probabilities sum to 1.0?
+Are Bayesian calculations correct?
+Are priors reasonable?
+Cognitive Bias Detection:
+
+
+Anchoring: Is first impression dominating?
+Availability: Is recent case influencing judgment?
+Confirmation: Are disconfirming findings ignored?
+Premature closure: Is differential too narrow?
+Unique Variables:
+ReasoningCoherence [0.0-1.0]: Internal logical consistency
+
+
+1.0 = Perfectly coherent reasoning
+<0.7 = Logic errors detected, review needed
+BiasRiskScore [0.0-1.0]: Likelihood cognitive bias is present
+
+
+Clinical Example:
+Diagnostic Audit for Pneumonia Case:
+
+Logical Coherence Check: PASS
+  ✓ Fever + cough + infiltrate → pneumonia (logical)
+  ✓ No contra
+
+5.1 Reasoning Auditors (completed, refined)
+ReasoningCoherence ∈ [0,1]: logical graph consistency score (acyclic causal paths; contradiction detector).
+
+
+BiasRiskScore ∈ [0,1]: composite of Anchoring, Availability, Confirmation, PrematureClosure sentinels using counterfactual probes.
+
+
+ContraPulse: auto-generation of a most-damaging counter-hypothesis and targeted “disconfirmers” to test it before closure.
+
+
+5.2 Aletheia Priors
+AletheiaPrior: calibrated pre-test belief vector derived from epidemiology + context + syndrome fit, with shrinkage toward neutral when StreamFidelity is low (prevents overconfident priors).
+
+
+Update rule: shrinkage factor σ_ale = (1 − median(StreamFidelity)).
+
+
+5.3 Agnosia Guard
+Detects unknown-unknowns: high DivergenceIndex + low ConstellationCoherence + repeated low InformationGain → triggers AgnosiaAlert, recommending escalation to human specialist or multidisciplinary review.
+
+
+5.4 BayesLoom Ledger
+BayesLoom: immutable audit trail of each update step (prior → LR → posterior), with ProvenanceHash for each datum (source, time, device QC). Facilitates peer review and regulatory traceability.
+
+
+5.5 Closure Governor
+ClosureFriction increases when (a) disconfirmers skipped, (b) residual probability mass for “MustNotMiss” > ε_mnm, or (c) ReasoningCoherence < 0.7. Prevents premature closure and forces one more targeted test or second look.
+
+
+Output (Stratum 5): Bias-aware, audited, defensible diagnostic narrative with explicit residual uncertainty and documented disconfirmations.
+
+STRATUM 6 (New): Hermeneutic Graph — Causal & Pathophysiologic Weaving
+Purpose: bridge syndrome patterns to mechanistic plausibility (keeps “looks like” tethered to “works like”).
+PathomechWeave: bipartite graph linking Phenocluster nodes ↔ Mechanism Kernels (inflammatory, ischemic, obstructive, autoimmune, degenerative).
+
+
+WeaveTension ∈ [0,1]: mismatch score between observed data and proposed mechanism (high tension → reassess hypothesis or seek mechanism-specific tests).
+
+
+CrosstalkTensor: higher-order mapping of multi-organ dynamics (e.g., cardio-renal-pulmonary).
+
+
+MechanismAnchors: findings with high mechanistic specificity (e.g., granular casts → renal tubular pathology).
+
+
+
+STRATUM 7 (New): Kairós Orchestrator — Time-Critical Decision Control
+Purpose: fuse probability with time-sensitivity and regret into action.
+KairósWindow: intervention window function w(t) that weights InterventionUtility by time decay/boost.
+
+
+RegretSurface(act, not-act): two-dimensional regret mapping; recommend option that minimizes max-regret when probabilities are close.
+
+
+HingeThresholds: dynamic treatment thresholds that move with UrgencyQuotient and DeteriorationVelocity (e.g., treat sepsis on suspicion > θ(t), where θ(t) drops as deterioration accelerates).
+
+
+(Builds directly on your Decision Nexus, formalizing urgency + regret math with unique names/objects; remains Bayesian at the core.)
+
+STRATUM 8 (New): Praxis Loop — Learning, Calibration & Safety Governance
+Purpose: make NEXUS self-improving under real-world use.
+EvidentiaGraph: rolling calibration set of prior cases with outcomes; powers PostTestBelief calibration via reliability curves.
+
+
+DeltaCalibration: ECE/Brier-driven micro-updates to AletheiaPriors per subpopulation (sex, age, comorbidity).
+
+
+Guardrails Charter: policy layer for “Scope limits, Red-flag escalation, Contraindication blocks,” automatically enforced in the loop.
+
+
+DriftSentinel: monitors changes in test performance (sensitivity/specificity drift), flags recalibration need.
+
+
+
+NEXUS Analytics Core (formal, with new terminology)
+Belief update (unchanged math, unique packaging):
+ Let π₀(d) be AletheiaPrior for diagnosis d and LR_t(d | x_t) the likelihood ratio of result x_t at step t.
+ BayesLoom update:
+ π_t(d) = [π_{t−1}(d) · LR_t(d | x_t)] / Σ_k [π_{t−1}(k) · LR_t(k | x_t)]
+Entropy-guided test selection:
+Differential entropy H(π) = −Σ_d π(d) log π(d)
+
+
+Expected post-test entropy E[H | test j] = p⁺·H(π⁺) + p⁻·H(π⁻)
+
+
+InfoGain_j = H(π) − E[H | j]; choose test maximizing Φ_j = (InfoGain_j · DiscriminatorPotency_j) / (Cost_j + Risk_j) (your construct, now formalized).
+
+
+Closure criteria (v3.0):
+DecisiveConvergence: max_d π(d) ≥ τ_confirm AND ratio ≥ 3× next.
+
+
+KairósOverride: if UrgencyQuotient ≥ 0.8 or MustNotMiss(d*) with π(d*) ≥ τ_emergent, act now (time-weighted threshold).
+
+
+ContraPulseCleared: at least one disconfirmer for top-1 tested (unless unsafe or infeasible).
+
+
+(Probability discipline per your Bayes article is preserved, avoiding the sensitivity ↔ PPV confusion you highlighted.)

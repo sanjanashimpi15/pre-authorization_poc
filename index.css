@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/* Force modern sans-serif font family globally */
+body, button, input, select, textarea, span, div, p, h1, h2, h3, h4, h5, h6, table, th, td, a {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Global Light Theme Overrides */
+body {
+  background-color: #f6f8fa !important;
+  color: #374151 !important;
+}
+
+/* Card overrides: Pure White Background, Thin borders, soft shadows */
+.bg-white:not(.wizard-modal-container), .card-premium, [class*="bg-white"]:not(.wizard-modal-container), .bg-slate-50, .bg-gray-50, .bg-gray-100 {
+  background-color: #ffffff !important;
+  color: #374151 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  border-radius: 16px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.bg-white:not(.wizard-modal-container):hover, .card-premium:hover, [class*="bg-white"]:not(.wizard-modal-container):hover {
+  border-color: #0f9488 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03) !important;
+  transform: translateY(-2px) !important;
+}
+
+.wizard-modal-container {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 20px !important;
+}
+
+/* Standard panel borders */
+.border-gray-200, .border-slate-200, .border-gray-100, .border-slate-100, .border, .border-opd-border {
+  border-color: #e5e7eb !important;
+}
+
+/* Sidebar / panel backgrounds */
+.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-slate-100, .bg-opd-bg, [class*="bg-slate-100"], [class*="bg-gray-50"] {
+  background-color: #f6f8fa !important;
+}
+
+/* Modern clean inputs for light theme */
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea, .form-input, .bg-opd-input-bg {
+  background-color: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  color: #1f2937 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 0.875rem !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="date"]:focus, select:focus, textarea:focus, .form-input:focus {
+  border-color: #0f9488 !important;
+  box-shadow: 0 0 0 4px rgba(15, 148, 136, 0.15) !important;
+  background-color: #ffffff !important;
+  outline: none !important;
+}
+
+/* Text color adaptations */
+.text-gray-900, .text-slate-900, .text-gray-800, .text-slate-800, h1, h2, h3, h4, h5, h6 {
+  color: #0f172a !important; /* Dark navy-slate */
+}
+
+.text-gray-700, .text-slate-700, .text-gray-600, .text-slate-600 {
+  color: #4b5563 !important; /* Muted slate body text */
+}
+
+.text-gray-500, .text-slate-500, .text-opd-text-secondary {
+  color: #6b7280 !important; /* Muted gray body/labels */
+}
+
+.text-opd-text-muted, .text-gray-400, .text-slate-400 {
+  color: #6b7280 !important; /* Muted helper text */
+}
+
+/* Primary and Secondary Accent Colors */
+.text-opd-primary {
+  color: #0f9488 !important;
+}
+
+.bg-opd-primary {
+  background-color: #0f9488 !important;
+}
+
+/* Polished Buttons (Solid teal deep/emerald fill, no gradient or glow) */
+.btn-primary, button[class*="bg-opd-primary"], button[class*="bg-emerald-600"] {
+  background-color: #0f9488 !important;
+  color: #ffffff !important;
+  border: 1px solid #0f9488 !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.btn-primary:hover:not(:disabled), button[class*="bg-opd-primary"]:hover:not(:disabled) {
+  background-color: #0d7c71 !important;
+  border-color: #0d7c71 !important;
+}
+
+.btn-secondary, button[class*="bg-white"]:not(.btn-primary) {
+  background-color: #ffffff !important;
+  color: #0f9488 !important;
+  border: 1px solid rgba(15, 148, 136, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.btn-secondary:hover:not(:disabled), button[class*="bg-white"]:not(.btn-primary):hover {
+  background-color: rgba(15, 148, 136, 0.05) !important;
+  border-color: #0f9488 !important;
+}
+
+/* Glassmorphism Header */
+header, [class*="border-b bg-white"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Badges styling: soft pastel background with matching darker text color (pill-shaped) */
+.ai-suggestion-label, [class*="bg-blue-50 text-blue-700"] {
+  background-color: #f0fdfa !important;
+  color: #0d9488 !important;
+  border: 1px solid #ccfbf1 !important;
+  border-radius: 9999px !important;
+}
+
+[class*="bg-emerald-50 text-emerald-700"], [class*="bg-emerald-500/10"] {
+  background-color: #f0fdf4 !important;
+  color: #16a34a !important;
+  border: 1px solid #dcfce7 !important;
+  border-radius: 9999px !important;
+}
+
+[class*="bg-amber-50 text-amber-700"], [class*="bg-amber-500/10"] {
+  background-color: #fffbeb !important;
+  color: #d97706 !important;
+  border: 1px solid #fef3c7 !important;
+  border-radius: 9999px !important;
+}
+
+[class*="bg-red-50 text-red-700"], [class*="bg-rose-50 text-rose-700"], [class*="bg-red-500/10"] {
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fee2e2 !important;
+  border-radius: 9999px !important;
+}
+
+/* High contrast semantic text overrides for light theme */
+.text-emerald-400 {
+  color: #16a34a !important;
+}
+.text-amber-400 {
+  color: #d97706 !important;
+}
+.text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Active tab state in wizard progress bar */
+[class*="bg-emerald-500"] {
+  background-color: #0f9488 !important;
+  color: #ffffff !important;
+}
+
+.bg-primary-tint {
+  background-color: rgba(15, 148, 136, 0.05) !important;
+}
+
+/* Light theme console styling for terminal logs */
+.bg-slate-950, [class*="bg-slate-950"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}

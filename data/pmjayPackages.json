@@ -1,0 +1,94 @@
+{
+  "packages": [
+    {
+      "icdPrefix": "H25",
+      "packageCode": "HBP-2.1.1",
+      "packageName": "Cataract Surgery with Foldable IOL (Phaco)",
+      "rate": 10000
+    },
+    {
+      "icdPrefix": "H26",
+      "packageCode": "HBP-2.1.2",
+      "packageName": "Cataract Surgery - Other",
+      "rate": 9000
+    },
+    {
+      "icdPrefix": "O34",
+      "packageCode": "HBP-9.17.1",
+      "packageName": "Cesarean Delivery (LSCS)",
+      "rate": 9000
+    },
+    {
+      "icdPrefix": "O82",
+      "packageCode": "HBP-9.17.2",
+      "packageName": "Cesarean Delivery Package",
+      "rate": 9000
+    },
+    {
+      "icdPrefix": "M17",
+      "packageCode": "HBP-19.59.1",
+      "packageName": "Total Knee Arthroplasty (TKR) - Unilateral",
+      "rate": 80000
+    },
+    {
+      "icdPrefix": "I25",
+      "packageCode": "HBP-3.1.1",
+      "packageName": "Coronary Artery Bypass Grafting (CABG)",
+      "rate": 150000
+    },
+    {
+      "icdPrefix": "I21",
+      "packageCode": "HBP-3.1.2",
+      "packageName": "Acute Myocardial Infarction Management",
+      "rate": 75000
+    },
+    {
+      "icdPrefix": "K35",
+      "packageCode": "HBP-7.6.1",
+      "packageName": "Acute Appendectomy",
+      "rate": 10000
+    },
+    {
+      "icdPrefix": "K36",
+      "packageCode": "HBP-7.6.2",
+      "packageName": "Appendectomy - Other",
+      "rate": 10000
+    },
+    {
+      "icdPrefix": "A97",
+      "packageCode": "HBP-6.1.1",
+      "packageName": "Dengue Fever / Hemorrhagic Fever Management",
+      "rate": 8000
+    },
+    {
+      "icdPrefix": "A90",
+      "packageCode": "HBP-6.1.2",
+      "packageName": "Classical Dengue Management",
+      "rate": 8000
+    },
+    {
+      "icdPrefix": "A01",
+      "packageCode": "HBP-6.2.1",
+      "packageName": "Typhoid / Enteric Fever Management",
+      "rate": 9000
+    },
+    {
+      "icdPrefix": "J18",
+      "packageCode": "HBP-5.3.1",
+      "packageName": "Severe Pneumonia Management",
+      "rate": 12000
+    },
+    {
+      "icdPrefix": "D25",
+      "packageCode": "HBP-9.25.1",
+      "packageName": "Uterine Fibroid / Myomectomy Package",
+      "rate": 22000
+    },
+    {
+      "icdPrefix": "N80",
+      "packageCode": "HBP-9.25.2",
+      "packageName": "Endometriosis / Gynaecologic Surgery",
+      "rate": 20000
+    }
+  ]
+}

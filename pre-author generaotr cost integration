@@ -1,0 +1,280 @@
+// ============================================================================
+// PRE-AUTH DOCUMENT GENERATOR - With Cost Integration
+// File: src/modules/insurance/utils/preAuthGenerator.ts
+// ============================================================================
+
+import { calculateCost, findConditionByICD } from './services/costEstimationService';
+
+// -----------------------------------------------------------------------------
+// TYPES
+// -----------------------------------------------------------------------------
+
+interface PreAuthInput {
+    // Patient Info
+    patient: {
+        name: string;
+        age: number;
+        gender: 'Male' | 'Female' | 'Other';
+        dob?: string;
+        address?: string;
+        phone?: string;
+        uhid?: string;
+        abha_id?: string;
+    };
+
+    // Insurance Info
+    insurance: {
+        policy_number: string;
+        insurance_company: string;
+        tpa_name: string;
+        tpa_card_no?: string;
+        sum_insured?: number;
+        policy_type?: string;
+        is_pmjay: boolean;
+    };
+
+    // Clinical Info (from NEXUS)
+    clinical: {
+        chief_complaints: string;
+        duration: string;
+        clinical_findings: string;
+        diagnosis: string;
+        icd_code: string;
+        is_surgical: boolean;
+        vitals: {
+            bp: string;
+            pulse: number;
+            temp: number;
+            spo2: number;
+            rr: number;
+        };
+        medical_necessity_statement: string;
+        proposed_treatment: string[];
+    };
+
+    // Admission Info
+    admission: {
+        date: string;
+        time: string;
+        type: 'Emergency' | 'Planned';
+        room_category: 'General Ward' | 'Semi-Private' | 'Private' | 'ICU';
+    };
+
+    // Hospital Info
+    hospital: {
+        name: string;
+        address: string;
+        rohini_id?: string;
+    };
+
+    // Doctor Info
+    doctor: {
+        name: string;
+        registration_no: string;
+        specialty: string;
+    };
+}
+
+interface PreAuthDocument {
+    ref_no: string;
+    generated_at: string;
+    status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+    // All sections for PDF
+    patient_details: any;
+    insurance_details: any;
+    clinical_details: any;
+    admission_details: any;
+    cost_estimate: any;
+    declarations: any;
+}
+
+// -----------------------------------------------------------------------------
+// GENERATE PRE-AUTH DOCUMENT
+// -----------------------------------------------------------------------------
+
+export function generatePreAuthDocument(input: PreAuthInput): PreAuthDocument {
+
+    // 1. Generate reference number
+    const refNo = `PA-AIVANA-${formatDate(new Date())}-${Math.floor(Math.random() * 10000)}`;
+
+    // 2. Find condition and calculate costs
+    const condition = findConditionByICD(input.clinical.icd_code);
+    const costEstimate = calculateCost(
+        input.clinical.icd_code,
+        input.admission.room_category,
+        input.insurance.is_pmjay
+    );
+
+    // 3. Build document
+    return {
+        ref_no: refNo,
+        generated_at: new Date().toISOString(),
+        status: 'DRAFT',
+
+        // Section 1 & 2: Insurance & Policy Details
+        insurance_details: {
+            insurance_company: input.insurance.insurance_company || 'N/A',
+            tpa_name: input.insurance.tpa_name || 'N/A',
+            tpa_card_no: input.insurance.tpa_card_no || 'N/A',
+            policy_number: input.insurance.policy_number || 'N/A',
+            policy_type: input.insurance.policy_type || 'N/A',
+            sum_insured: input.insurance.sum_insured || 0,
+            is_pmjay: input.insurance.is_pmjay
+        },
+
+        // Section 3: Patient Details
+        patient_details: {
+            name: input.patient.name || 'N/A',
+            age: input.patient.age,
+            gender: input.patient.gender,
+            dob: input.patient.dob || 'N/A',
+            address: input.patient.address || 'N/A',
+            phone: input.patient.phone || 'N/A',
+            uhid: input.patient.uhid || 'N/A',
+            abha_id: input.patient.abha_id || 'N/A'
+        },
+
+        // Section 4: Clinical Details
+        clinical_details: {
+            chief_complaints: input.clinical.chief_complaints,
+            duration: input.clinical.duration,
+            nature_of_illness: 'Acute',
+            clinical_findings: input.clinical.clinical_findings,
+
+            provisional_diagnosis: input.clinical.diagnosis,
+            icd_code: input.clinical.icd_code,
+            icd_description: condition?.condition || input.clinical.diagnosis,
+
+            vitals: input.clinical.vitals,
+
+            treatment_type: {
+                medical: !input.clinical.is_surgical,
+                surgical: input.clinical.is_surgical,
+                icu: costEstimate.los.icu_days > 0,
+                investigation: true
+            },
+
+            medical_necessity: input.clinical.medical_necessity_statement,
+            proposed_treatment: input.clinical.proposed_treatment
+        },
+
+        // Section 5: Admission Details
+        admission_details: {
+            date: input.admission.date,
+            time: input.admission.time,
+            type: input.admission.type,
+            room_category: input.admission.room_category,
+
+            // ✅ NOW PULLED FROM ICD DATABASE
+            expected_los: {
+                total: costEstimate.los.total_days,
+                ward: costEstimate.los.ward_days,
+                icu: costEstimate.los.icu_days
+            }
+        },
+
+        // Section 6: Cost Estimate ✅ NOW CALCULATED FROM ICD DATABASE
+        cost_estimate: {
+            source: costEstimate.source,
+            pmjay_package: costEstimate.pmjay_details || null,
+
+            breakdown: {
+                room_rent: costEstimate.breakdown.room_rent,
+                nursing_charges: costEstimate.breakdown.nursing_charges,
+                icu_charges: costEstimate.breakdown.icu_charges,
+                ot_charges: costEstimate.breakdown.ot_charges,
+                surgeon_fee: costEstimate.breakdown.surgeon_fee,
+                anesthetist_fee: costEstimate.breakdown.anesthetist_fee,
+                consultant_fee: costEstimate.breakdown.consultant_fee,
+                investigations: costEstimate.breakdown.investigations,
+                medicines: costEstimate.breakdown.medicines,
+                consumables: costEstimate.breakdown.consumables,
+                implants: costEstimate.breakdown.implants,
+                miscellaneous: costEstimate.breakdown.miscellaneous
+            },
+
+            total_estimated: costEstimate.total_estimated,
+            claimed_amount: costEstimate.claimed_amount
+        },
+
+        // Section 7: Declarations
+        declarations: {
+            doctor: {
+                name: input.doctor.name || 'N/A',
+                registration: input.doctor.registration_no || 'N/A',
+                confirmed: false
+            },
+            patient_consent: false,
+            hospital_signatory: {
+                name: 'N/A',
+                designation: 'N/A'
+            }
+        }
+    };
+}
+
+// -----------------------------------------------------------------------------
+// HELPER: Format date
+// -----------------------------------------------------------------------------
+
+function formatDate(date: Date): string {
+    return date.toISOString().split('T')[0].replace(/-/g, '');
+}
+
+// -----------------------------------------------------------------------------
+// USAGE IN YOUR PRE-AUTH WIZARD
+// -----------------------------------------------------------------------------
+
+/*
+// In your PreAuthWizard.tsx or wherever you generate the document:
+
+import { generatePreAuthDocument } from './utils/preAuthGenerator';
+
+const handleGeneratePreAuth = () => {
+  const preAuthDoc = generatePreAuthDocument({
+    patient: {
+      name: formData.patientName,
+      age: formData.age,
+      gender: formData.gender,
+      // ... other fields
+    },
+    insurance: {
+      policy_number: formData.policyNumber,
+      insurance_company: formData.insuranceCompany,
+      tpa_name: formData.tpaName,
+      is_pmjay: formData.isPMJAY,
+      // ... other fields
+    },
+    clinical: {
+      chief_complaints: nexusOutput.chiefComplaints,
+      duration: nexusOutput.duration,
+      clinical_findings: nexusOutput.clinicalFindings,
+      diagnosis: nexusOutput.diagnosis,
+      icd_code: selectedICDCode,  // From ICD selector
+      is_surgical: nexusOutput.isSurgical,
+      vitals: nexusOutput.vitals,
+      medical_necessity_statement: generatedMedicalNecessity,
+      proposed_treatment: nexusOutput.treatmentPlan,
+    },
+    admission: {
+      date: formData.admissionDate,
+      time: formData.admissionTime,
+      type: formData.admissionType,
+      room_category: formData.roomCategory,
+    },
+    hospital: {
+      name: hospitalConfig.name,
+      address: hospitalConfig.address,
+    },
+    doctor: {
+      name: doctorProfile.name,
+      registration_no: doctorProfile.registrationNo,
+      specialty: doctorProfile.specialty,
+    }
+  });
+  
+  // Now generate PDF with preAuthDoc
+  generatePDF(preAuthDoc);
+};
+*/

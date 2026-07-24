@@ -1,0 +1,2662 @@
+{
+    "metadata": {
+        "version": "1.0",
+        "total_conditions": 100,
+        "last_updated": "2026-03-04",
+        "currency": "INR",
+        "sources": [
+            "PMJAY HBP 2.0",
+            "CGHS Rates 2023",
+            "Industry Estimates"
+        ],
+        "notes": "Private rates are estimates for Tier-1 city hospitals"
+    },
+    "conditions": [
+        {
+            "id": "RESP-001",
+            "icd_code": "J18.9",
+            "condition": "Community Acquired Pneumonia (Unspecified)",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 7,
+                "avg": 6,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-1-002",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 7500,
+                "med_per_day": 2500,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-002",
+            "icd_code": "J15.9",
+            "condition": "Bacterial Pneumonia",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 8,
+                "avg": 6,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-1-002",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 8000,
+                "med_per_day": 3000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-003",
+            "icd_code": "J69.0",
+            "condition": "Aspiration Pneumonia",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-1-003",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 22000,
+                "invest": 12000,
+                "med_per_day": 4000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "RESP-004",
+            "icd_code": "J44.1",
+            "condition": "COPD Acute Exacerbation",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 7,
+                "avg": 5,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-2-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 6000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-005",
+            "icd_code": "J45.21",
+            "condition": "Acute Severe Asthma",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 5,
+                "avg": 4,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-3-001",
+                "rate": 10000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 5000,
+                "med_per_day": 2500,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-006",
+            "icd_code": "J45.22",
+            "condition": "Status Asthmaticus",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-3-002",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 22000,
+                "invest": 8000,
+                "med_per_day": 3500,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "RESP-007",
+            "icd_code": "A15.0",
+            "condition": "Pulmonary Tuberculosis",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-5-001",
+                "rate": 8000
+            },
+            "private": {
+                "ward": 2500,
+                "semi": 4500,
+                "pvt": 8000,
+                "icu": 18000,
+                "invest": 10000,
+                "med_per_day": 1500,
+                "consult": 600
+            }
+        },
+        {
+            "id": "RESP-008",
+            "icd_code": "J90",
+            "condition": "Pleural Effusion",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-4-001",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 10000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-009",
+            "icd_code": "J86.9",
+            "condition": "Empyema",
+            "specialty": "Respiratory",
+            "is_surgical": true,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-4-1-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 12000,
+                "med_per_day": 3500,
+                "procedure": 25000
+            }
+        },
+        {
+            "id": "RESP-010",
+            "icd_code": "J93.9",
+            "condition": "Pneumothorax",
+            "specialty": "Respiratory",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-4-2-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 8000,
+                "med_per_day": 2000,
+                "procedure": 15000
+            }
+        },
+        {
+            "id": "RESP-011",
+            "icd_code": "J96.00",
+            "condition": "Acute Respiratory Failure",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 21,
+                "avg": 10,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-5-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "RESP-012",
+            "icd_code": "I26.99",
+            "condition": "Pulmonary Embolism",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-5-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "RESP-013",
+            "icd_code": "J47.1",
+            "condition": "Bronchiectasis Exacerbation",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-6-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 10000,
+                "med_per_day": 3000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-014",
+            "icd_code": "J85.2",
+            "condition": "Lung Abscess",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 28,
+                "avg": 21,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-7-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 12000,
+                "med_per_day": 4000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "RESP-015",
+            "icd_code": "J20.9",
+            "condition": "Acute Bronchitis",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 5,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-8-001",
+                "rate": 6000
+            },
+            "private": {
+                "ward": 2500,
+                "semi": 4500,
+                "pvt": 8000,
+                "icu": 18000,
+                "invest": 4000,
+                "med_per_day": 1500,
+                "consult": 600
+            }
+        },
+        {
+            "id": "RESP-016",
+            "icd_code": "J84.9",
+            "condition": "Interstitial Lung Disease",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-9-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 20000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "RESP-017",
+            "icd_code": "U07.1",
+            "condition": "COVID-19 Pneumonia",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 21,
+                "avg": 12,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-10-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 35000,
+                "invest": 20000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "RESP-018",
+            "icd_code": "R04.2",
+            "condition": "Hemoptysis",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-11-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 15000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "RESP-019",
+            "icd_code": "G47.33",
+            "condition": "Obstructive Sleep Apnea",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 2,
+                "max": 3,
+                "avg": 2,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": false,
+                "hbp_code": null,
+                "rate": 0
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 25000,
+                "med_per_day": 1000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "RESP-020",
+            "icd_code": "J80",
+            "condition": "ARDS",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 14
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-12-001",
+                "rate": 100000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 35000,
+                "invest": 25000,
+                "med_per_day": 10000,
+                "consult": 2000
+            }
+        },
+        {
+            "id": "RESP-021",
+            "icd_code": "B44.81",
+            "condition": "Allergic Bronchopulmonary Aspergillosis",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-13-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "RESP-022",
+            "icd_code": "I27.0",
+            "condition": "Pulmonary Hypertension Crisis",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-6-001",
+                "rate": 40000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 30000,
+                "invest": 25000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "RESP-023",
+            "icd_code": "J96.10",
+            "condition": "Chronic Respiratory Failure",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 21,
+                "avg": 14,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-4-14-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 28000,
+                "invest": 15000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "RESP-024",
+            "icd_code": "J98.51",
+            "condition": "Mediastinitis",
+            "specialty": "Respiratory",
+            "is_surgical": true,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-4-3-001",
+                "rate": 75000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 35000,
+                "invest": 25000,
+                "med_per_day": 8000,
+                "procedure": 50000
+            }
+        },
+        {
+            "id": "RESP-025",
+            "icd_code": "J05.0",
+            "condition": "Acute Laryngotracheobronchitis (Croup)",
+            "specialty": "Respiratory",
+            "is_surgical": false,
+            "los": {
+                "min": 2,
+                "max": 5,
+                "avg": 3,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-P-2-2-001",
+                "rate": 10000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5000,
+                "pvt": 9000,
+                "icu": 18000,
+                "invest": 5000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "CARD-001",
+            "icd_code": "I21.0",
+            "condition": "Acute STEMI (Anterior)",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 4
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-1-1-001",
+                "rate": 120000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 35000,
+                "invest": 30000,
+                "med_per_day": 8000,
+                "procedure": 150000
+            }
+        },
+        {
+            "id": "CARD-002",
+            "icd_code": "I21.4",
+            "condition": "Non-STEMI",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-1-1-002",
+                "rate": 110000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 35000,
+                "invest": 30000,
+                "med_per_day": 7000,
+                "procedure": 140000
+            }
+        },
+        {
+            "id": "CARD-003",
+            "icd_code": "I20.0",
+            "condition": "Unstable Angina",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 7,
+                "avg": 5,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-1-2-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 25000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "CARD-004",
+            "icd_code": "I50.9",
+            "condition": "Acute Heart Failure",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 14,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-1-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "CARD-005",
+            "icd_code": "I50.21",
+            "condition": "Chronic Heart Failure Exacerbation",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-1-002",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-006",
+            "icd_code": "I48.91",
+            "condition": "Atrial Fibrillation with RVR",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 7,
+                "avg": 5,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-2-001",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 15000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-007",
+            "icd_code": "I47.2",
+            "condition": "Ventricular Tachycardia",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 4
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-2-002",
+                "rate": 30000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 32000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "CARD-008",
+            "icd_code": "I44.2",
+            "condition": "Complete Heart Block",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-2-1-001",
+                "rate": 55000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 4000,
+                "procedure": 80000
+            }
+        },
+        {
+            "id": "CARD-009",
+            "icd_code": "I16.1",
+            "condition": "Hypertensive Emergency",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 7,
+                "avg": 5,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-3-001",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-010",
+            "icd_code": "I16.0",
+            "condition": "Hypertensive Urgency",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 2,
+                "max": 5,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-3-002",
+                "rate": 8000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 10000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "CARD-011",
+            "icd_code": "I71.00",
+            "condition": "Aortic Dissection",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 10
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-3-1-001",
+                "rate": 250000
+            },
+            "private": {
+                "ward": 8000,
+                "semi": 15000,
+                "pvt": 25000,
+                "icu": 50000,
+                "invest": 50000,
+                "med_per_day": 15000,
+                "procedure": 400000
+            }
+        },
+        {
+            "id": "CARD-012",
+            "icd_code": "I30.9",
+            "condition": "Acute Pericarditis",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-4-001",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-013",
+            "icd_code": "I31.4",
+            "condition": "Cardiac Tamponade",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-3-2-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 35000,
+                "invest": 25000,
+                "med_per_day": 5000,
+                "procedure": 35000
+            }
+        },
+        {
+            "id": "CARD-014",
+            "icd_code": "I33.0",
+            "condition": "Infective Endocarditis",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 21,
+                "max": 42,
+                "avg": 28,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-5-001",
+                "rate": 50000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 35000,
+                "invest": 35000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "CARD-015",
+            "icd_code": "R57.0",
+            "condition": "Cardiogenic Shock",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 10
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-6-001",
+                "rate": 75000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 45000,
+                "invest": 35000,
+                "med_per_day": 12000,
+                "consult": 2000
+            }
+        },
+        {
+            "id": "CARD-016",
+            "icd_code": "J81.0",
+            "condition": "Acute Pulmonary Edema",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-7-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 15000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "CARD-017",
+            "icd_code": "I82.40",
+            "condition": "Deep Vein Thrombosis",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-8-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-018",
+            "icd_code": "I74.3",
+            "condition": "Acute Limb Ischemia",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-3-1-001",
+                "rate": 50000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 25000,
+                "med_per_day": 5000,
+                "procedure": 60000
+            }
+        },
+        {
+            "id": "CARD-019",
+            "icd_code": "R55",
+            "condition": "Syncope (Cardiac)",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 5,
+                "avg": 3,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-9-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 20000,
+                "med_per_day": 2000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-020",
+            "icd_code": "I09.9",
+            "condition": "Rheumatic Heart Disease",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-10-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 18000,
+                "med_per_day": 4000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-021",
+            "icd_code": "I42.0",
+            "condition": "Dilated Cardiomyopathy",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-11-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 25000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "CARD-022",
+            "icd_code": "I47.1",
+            "condition": "Supraventricular Tachycardia",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 2,
+                "max": 5,
+                "avg": 3,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-12-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 2500,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "CARD-023",
+            "icd_code": "I49.5",
+            "condition": "Sick Sinus Syndrome",
+            "specialty": "Cardiovascular",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-C-2-1-002",
+                "rate": 60000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 4000,
+                "procedure": 85000
+            }
+        },
+        {
+            "id": "CARD-024",
+            "icd_code": "I26.09",
+            "condition": "Acute Cor Pulmonale",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-13-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 32000,
+                "invest": 25000,
+                "med_per_day": 6000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "CARD-025",
+            "icd_code": "I23.8",
+            "condition": "Post-MI Complications",
+            "specialty": "Cardiovascular",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-3-14-001",
+                "rate": 50000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 40000,
+                "invest": 30000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "GI-001",
+            "icd_code": "K85.9",
+            "condition": "Acute Pancreatitis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 14,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-2-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 3500,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "GI-002",
+            "icd_code": "K81.0",
+            "condition": "Acute Cholecystitis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 4,
+                "max": 7,
+                "avg": 5,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-4-002",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 10000,
+                "med_per_day": 2500,
+                "procedure": 45000
+            }
+        },
+        {
+            "id": "GI-003",
+            "icd_code": "K83.09",
+            "condition": "Acute Cholangitis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-5-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 20000,
+                "med_per_day": 4000,
+                "procedure": 55000
+            }
+        },
+        {
+            "id": "GI-004",
+            "icd_code": "K35.80",
+            "condition": "Acute Appendicitis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 2,
+                "max": 4,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-3-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 6000,
+                "med_per_day": 1500,
+                "procedure": 35000
+            }
+        },
+        {
+            "id": "GI-005",
+            "icd_code": "K56.60",
+            "condition": "Intestinal Obstruction",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-6-001",
+                "rate": 40000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 12000,
+                "med_per_day": 3000,
+                "procedure": 50000
+            }
+        },
+        {
+            "id": "GI-006",
+            "icd_code": "K92.0",
+            "condition": "Upper GI Bleeding",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-3-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 20000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "GI-007",
+            "icd_code": "K92.1",
+            "condition": "Lower GI Bleeding",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-3-002",
+                "rate": 22000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 18000,
+                "med_per_day": 3500,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "GI-008",
+            "icd_code": "K25.5",
+            "condition": "Peptic Ulcer Perforation",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-7-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 12000,
+                "med_per_day": 3500,
+                "procedure": 40000
+            }
+        },
+        {
+            "id": "GI-009",
+            "icd_code": "A09",
+            "condition": "Acute Gastroenteritis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 2,
+                "max": 5,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-1-001",
+                "rate": 8000
+            },
+            "private": {
+                "ward": 2500,
+                "semi": 4500,
+                "pvt": 8000,
+                "icu": 18000,
+                "invest": 4000,
+                "med_per_day": 1500,
+                "consult": 600
+            }
+        },
+        {
+            "id": "GI-010",
+            "icd_code": "B15.9",
+            "condition": "Acute Viral Hepatitis A",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 14,
+                "avg": 7,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-4-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 8000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "GI-011",
+            "icd_code": "K70.10",
+            "condition": "Alcoholic Hepatitis",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-5-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "GI-012",
+            "icd_code": "K72.90",
+            "condition": "Hepatic Encephalopathy",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 4
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-6-001",
+                "rate": 30000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 18000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "GI-013",
+            "icd_code": "K74.60",
+            "condition": "Cirrhosis Decompensation",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-7-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "GI-014",
+            "icd_code": "K72.00",
+            "condition": "Acute Liver Failure",
+            "specialty": "Gastrointestinal",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 14
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-5-12-001",
+                "rate": 100000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 40000,
+                "invest": 40000,
+                "med_per_day": 12000,
+                "consult": 2000
+            }
+        },
+        {
+            "id": "GI-015",
+            "icd_code": "I85.01",
+            "condition": "Esophageal Varices Bleeding",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 4
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-5-1-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "procedure": 40000
+            }
+        },
+        {
+            "id": "GI-016",
+            "icd_code": "K46.0",
+            "condition": "Incarcerated Hernia",
+            "specialty": "Gastrointestinal",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-1-003",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 8000,
+                "med_per_day": 2500,
+                "procedure": 35000
+            }
+        },
+        {
+            "id": "NEURO-001",
+            "icd_code": "I63.9",
+            "condition": "Acute Ischemic Stroke",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 21,
+                "avg": 14,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-1-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 35000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "NEURO-002",
+            "icd_code": "I61.9",
+            "condition": "Hemorrhagic Stroke",
+            "specialty": "Neurological",
+            "is_surgical": true,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 10
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-N-1-1-001",
+                "rate": 75000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 35000,
+                "invest": 40000,
+                "med_per_day": 8000,
+                "procedure": 100000
+            }
+        },
+        {
+            "id": "NEURO-003",
+            "icd_code": "I60.9",
+            "condition": "Subarachnoid Hemorrhage",
+            "specialty": "Neurological",
+            "is_surgical": true,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 14
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-N-1-2-001",
+                "rate": 150000
+            },
+            "private": {
+                "ward": 7000,
+                "semi": 12000,
+                "pvt": 22000,
+                "icu": 45000,
+                "invest": 50000,
+                "med_per_day": 10000,
+                "procedure": 200000
+            }
+        },
+        {
+            "id": "NEURO-004",
+            "icd_code": "G45.9",
+            "condition": "Transient Ischemic Attack",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 3,
+                "max": 5,
+                "avg": 4,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-2-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 25000,
+                "med_per_day": 3000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "NEURO-005",
+            "icd_code": "G41.9",
+            "condition": "Status Epilepticus",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 14,
+                "avg": 7,
+                "icu": 4
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-3-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "NEURO-006",
+            "icd_code": "G00.9",
+            "condition": "Bacterial Meningitis",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 21,
+                "avg": 14,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-5-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 25000,
+                "med_per_day": 6000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "NEURO-007",
+            "icd_code": "A86",
+            "condition": "Viral Encephalitis",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 28,
+                "avg": 21,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-6-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 32000,
+                "invest": 30000,
+                "med_per_day": 6000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "NEURO-008",
+            "icd_code": "G61.0",
+            "condition": "Guillain-Barré Syndrome",
+            "specialty": "Neurological",
+            "is_surgical": false,
+            "los": {
+                "min": 21,
+                "max": 60,
+                "avg": 30,
+                "icu": 14
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-6-8-001",
+                "rate": 100000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 35000,
+                "invest": 30000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "NEURO-009",
+            "icd_code": "S06.9",
+            "condition": "Traumatic Brain Injury",
+            "specialty": "Neurological",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 30,
+                "avg": 14,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-N-2-1-001",
+                "rate": 50000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 35000,
+                "invest": 35000,
+                "med_per_day": 6000,
+                "procedure": 75000
+            }
+        },
+        {
+            "id": "NEURO-010",
+            "icd_code": "G06.0",
+            "condition": "Brain Abscess",
+            "specialty": "Neurological",
+            "is_surgical": true,
+            "los": {
+                "min": 21,
+                "max": 42,
+                "avg": 28,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-N-4-1-001",
+                "rate": 75000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 35000,
+                "invest": 35000,
+                "med_per_day": 8000,
+                "procedure": 80000
+            }
+        },
+        {
+            "id": "INF-001",
+            "icd_code": "A90",
+            "condition": "Dengue Fever",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 4,
+                "max": 7,
+                "avg": 5,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-1-001",
+                "rate": 10000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 8000,
+                "med_per_day": 2000,
+                "consult": 800
+            }
+        },
+        {
+            "id": "INF-002",
+            "icd_code": "A91",
+            "condition": "Dengue Hemorrhagic Fever",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-1-002",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "INF-003",
+            "icd_code": "B50.9",
+            "condition": "Malaria (P. falciparum)",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-3-002",
+                "rate": 15000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 10000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "INF-004",
+            "icd_code": "A01.0",
+            "condition": "Typhoid Fever",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-2-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 8000,
+                "med_per_day": 2500,
+                "consult": 800
+            }
+        },
+        {
+            "id": "INF-005",
+            "icd_code": "A27.9",
+            "condition": "Leptospirosis",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-5-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "INF-006",
+            "icd_code": "A41.9",
+            "condition": "Sepsis",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-7-001",
+                "rate": 45000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 32000,
+                "invest": 25000,
+                "med_per_day": 8000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "INF-007",
+            "icd_code": "R65.21",
+            "condition": "Septic Shock",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 14,
+                "max": 30,
+                "avg": 21,
+                "icu": 14
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-7-003",
+                "rate": 100000
+            },
+            "private": {
+                "ward": 6000,
+                "semi": 10000,
+                "pvt": 18000,
+                "icu": 45000,
+                "invest": 40000,
+                "med_per_day": 15000,
+                "consult": 2000
+            }
+        },
+        {
+            "id": "INF-008",
+            "icd_code": "A75.3",
+            "condition": "Scrub Typhus",
+            "specialty": "Infectious",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-1-6-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 12000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "ENDO-001",
+            "icd_code": "E10.10",
+            "condition": "Diabetic Ketoacidosis",
+            "specialty": "Endocrine",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-7-1-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 12000,
+                "med_per_day": 3000,
+                "consult": 1000
+            }
+        },
+        {
+            "id": "ENDO-002",
+            "icd_code": "E11.01",
+            "condition": "HHS (Hyperosmolar State)",
+            "specialty": "Endocrine",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-7-1-002",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "ENDO-003",
+            "icd_code": "E05.5",
+            "condition": "Thyroid Storm",
+            "specialty": "Endocrine",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 5
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-7-2-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 28000,
+                "invest": 15000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "ENDO-004",
+            "icd_code": "E03.5",
+            "condition": "Myxedema Coma",
+            "specialty": "Endocrine",
+            "is_surgical": false,
+            "los": {
+                "min": 10,
+                "max": 21,
+                "avg": 14,
+                "icu": 7
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-7-3-001",
+                "rate": 35000
+            },
+            "private": {
+                "ward": 4500,
+                "semi": 8000,
+                "pvt": 15000,
+                "icu": 30000,
+                "invest": 18000,
+                "med_per_day": 5000,
+                "consult": 1500
+            }
+        },
+        {
+            "id": "ENDO-005",
+            "icd_code": "E27.2",
+            "condition": "Adrenal Crisis",
+            "specialty": "Endocrine",
+            "is_surgical": false,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-7-4-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "NEPH-001",
+            "icd_code": "N17.9",
+            "condition": "Acute Kidney Injury",
+            "specialty": "Nephrology",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 3
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-8-1-001",
+                "rate": 25000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 18000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "NEPH-002",
+            "icd_code": "N18.6",
+            "condition": "CKD Stage 5 / ESRD",
+            "specialty": "Nephrology",
+            "is_surgical": false,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 2
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-M-8-2-001",
+                "rate": 20000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 4000,
+                "consult": 1200
+            }
+        },
+        {
+            "id": "NEPH-003",
+            "icd_code": "N20.0",
+            "condition": "Ureteric Calculus",
+            "specialty": "Nephrology",
+            "is_surgical": true,
+            "los": {
+                "min": 2,
+                "max": 5,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-9-1-001",
+                "rate": 22000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 12000,
+                "med_per_day": 2000,
+                "procedure": 30000
+            }
+        },
+        {
+            "id": "ORTHO-001",
+            "icd_code": "S72.009A",
+            "condition": "Femur Fracture",
+            "specialty": "Orthopedics",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 14,
+                "avg": 10,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-10-1-001",
+                "rate": 40000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 15000,
+                "med_per_day": 3000,
+                "procedure": 75000
+            }
+        },
+        {
+            "id": "ORTHO-002",
+            "icd_code": "M17.0",
+            "condition": "Knee Osteoarthritis (TKR)",
+            "specialty": "Orthopedics",
+            "is_surgical": true,
+            "los": {
+                "min": 7,
+                "max": 10,
+                "avg": 7,
+                "icu": 1
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-10-2-001",
+                "rate": 80000
+            },
+            "private": {
+                "ward": 5000,
+                "semi": 9000,
+                "pvt": 16000,
+                "icu": 30000,
+                "invest": 20000,
+                "med_per_day": 3000,
+                "procedure": 200000
+            }
+        },
+        {
+            "id": "ORTHO-003",
+            "icd_code": "S82.001A",
+            "condition": "Tibia Fracture",
+            "specialty": "Orthopedics",
+            "is_surgical": true,
+            "los": {
+                "min": 5,
+                "max": 10,
+                "avg": 7,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-10-3-001",
+                "rate": 30000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 10000,
+                "med_per_day": 2500,
+                "procedure": 45000
+            }
+        },
+        {
+            "id": "SURG-001",
+            "icd_code": "K40.30",
+            "condition": "Inguinal Hernia",
+            "specialty": "General Surgery",
+            "is_surgical": true,
+            "los": {
+                "min": 2,
+                "max": 4,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-1-001",
+                "rate": 18000
+            },
+            "private": {
+                "ward": 3500,
+                "semi": 6000,
+                "pvt": 12000,
+                "icu": 22000,
+                "invest": 5000,
+                "med_per_day": 1500,
+                "procedure": 30000
+            }
+        },
+        {
+            "id": "SURG-002",
+            "icd_code": "K80.20",
+            "condition": "Cholelithiasis",
+            "specialty": "General Surgery",
+            "is_surgical": true,
+            "los": {
+                "min": 2,
+                "max": 4,
+                "avg": 3,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-4-001",
+                "rate": 30000
+            },
+            "private": {
+                "ward": 4000,
+                "semi": 7000,
+                "pvt": 14000,
+                "icu": 25000,
+                "invest": 8000,
+                "med_per_day": 2000,
+                "procedure": 40000
+            }
+        },
+        {
+            "id": "SURG-003",
+            "icd_code": "L02.91",
+            "condition": "Abscess (Surgical Drainage)",
+            "specialty": "General Surgery",
+            "is_surgical": true,
+            "los": {
+                "min": 3,
+                "max": 7,
+                "avg": 5,
+                "icu": 0
+            },
+            "pmjay": {
+                "eligible": true,
+                "hbp_code": "HBP-S-7-2-001",
+                "rate": 12000
+            },
+            "private": {
+                "ward": 3000,
+                "semi": 5500,
+                "pvt": 10000,
+                "icu": 20000,
+                "invest": 5000,
+                "med_per_day": 2000,
+                "procedure": 15000
+            }
+        }
+    ]
+}

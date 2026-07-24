@@ -1,0 +1,1549 @@
+Here is the full, detailed implementation prompt for Antigravity.
+
+***
+
+# FULL IMPLEMENTATION PROMPT: Aivana Insurance Pre-Authorization Module (Pilot Mode)
+
+## CONTEXT
+
+You are building the complete Insurance Pre-Authorization module for **Aivana**, a clinical documentation system for Indian hospitals. This is a **pilot-mode implementation** — the hospital has NO EMR/HIS integration. Aivana operates as a standalone system with its own local database.
+
+The software converts doctor's clinical notes into insurance-ready "medical necessity" documents that reduce claim rejections and get hospitals paid faster.
+
+### What Already Exists (DO NOT MODIFY unless specified):
+- `components/VedaSessionView.tsx` - Voice scribe session that captures doctor-patient conversations
+- `services/geminiService.ts` - AI services including transcription and clinical note generation
+- `engine/workflow.ts` - NEXUS clinical reasoning workflow that produces DDx and severity scores
+- `types.ts` - TypeScript interfaces for the application
+
+### What You Are Building:
+A standalone, zero-integration pre-authorization system that:
+1. Captures patient + insurance details via card OCR or manual entry
+2. Pulls clinical data from voice scribe OR accepts manual clinical entry
+3. Auto-generates IRDAI Part-C compliant pre-authorization documents
+4. Produces TPA-ready medical necessity statements
+5. Tracks pre-auth lifecycle from draft to TPA response
+
+***
+
+## ARCHITECTURE OVERVIEW
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    AIVANA PRE-AUTH SYSTEM (PILOT MODE)                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │                    PHASE 1: DASHBOARD                          │     │
+│  │  - "New Pre-Authorization" button                              │     │
+│  │  - Pre-auth queue (Draft/Submitted/Approved/Denied/Query)      │     │
+│  │  - Search across existing pre-auths                            │     │
+│  │  - Notification badges for pending actions                     │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│       │                                                                  │
+│       ▼                                                                  │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │              PHASE 2: PATIENT + INSURANCE CAPTURE              │     │
+│  │                                                                │     │
+│  │  Three entry paths:                                            │     │
+│  │  A) 📷 Scan Insurance Card → OCR auto-fills patient +         │     │
+│  │     policy details                                             │     │
+│  │  B) ✏️ Manual Entry → type patient demographics + policy      │     │
+│  │  C) 🔍 Search Existing → reuse previously created patient     │     │
+│  │                                                                │     │
+│  │  Output: Patient identity + Insurance/Policy details           │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│       │                                                                  │
+│       ▼                                                                  │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │              PHASE 3: CLINICAL DATA ENTRY                      │     │
+│  │                                                                │     │
+│  │  Two source paths:                                             │     │
+│  │  A) Auto-pull from NEXUS voice scribe session                  │     │
+│  │  B) Manual structured clinical entry                           │     │
+│  │                                                                │     │
+│  │  - Chief complaints, duration, nature of illness               │     │
+│  │  - Clinical findings, vitals                                   │     │
+│  │  - Diagnosis selection with ICD-10 code                        │     │
+│  │  - Treatment line (Medical/Surgical/ICU/Investigation)         │     │
+│  │  - Surgery / Injury / Maternity details if applicable          │     │
+│  │  - Severity assessment                                         │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│       │                                                                  │
+│       ▼                                                                  │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │          PHASE 4: ADMISSION + COST ESTIMATION                  │     │
+│  │                                                                │     │
+│  │  - Admission type (Emergency/Planned), date, time              │     │
+│  │  - Room category, expected stay (ward + ICU days)              │     │
+│  │  - Past medical history checkboxes with duration               │     │
+│  │  - Cost breakup table (rate-card defaults, user adjusts)       │     │
+│  │  - Running total + coverage check vs sum insured               │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│       │                                                                  │
+│       ▼                                                                  │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │      PHASE 5: DOCUMENTS + REVIEW + GENERATE                   │     │
+│  │                                                                │     │
+│  │  - Required documents checklist (diagnosis-based)              │     │
+│  │  - Upload area (camera/file) with auto-classification          │     │
+│  │  - Evidence linking to voice-captured findings                 │     │
+│  │  - Auto-generated medical necessity preview                    │     │
+│  │  - Strength indicator (Strong/Moderate/Weak)                   │     │
+│  │  - All 3 declarations (patient/doctor/hospital)                │     │
+│  │  - Generate → PDF + IRDAI text + JSON                          │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│       │                                                                  │
+│       ▼                                                                  │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │           PHASE 6: POST-SUBMISSION TRACKING                    │     │
+│  │                                                                │     │
+│  │  - Status lifecycle on dashboard                               │     │
+│  │  - TPA query response flow                                     │     │
+│  │  - Enhancement request (if costs increase)                     │     │
+│  │  - Approval/Denial tracking with reasons                       │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+***
+
+## FILE STRUCTURE TO CREATE
+
+```
+components/
+├── Dashboard/
+│   ├── index.tsx                         # Main dashboard page
+│   ├── PreAuthQueue.tsx                  # List of all pre-auths with status
+│   ├── StatusBadge.tsx                   # Draft/Submitted/Approved/Denied/Query badges
+│   ├── SearchBar.tsx                     # Search pre-auths by name/policy/ref ID
+│   └── NotificationBell.tsx             # Pending actions count
+│
+├── PreAuthWizard/
+│   ├── index.tsx                         # Main 4-step wizard container
+│   ├── WizardProgress.tsx               # Step indicator (1-2-3-4)
+│   ├── PatientInsuranceStep.tsx         # Step 1: Patient + Insurance
+│   ├── ClinicalDetailsStep.tsx          # Step 2: Clinical data
+│   ├── AdmissionCostStep.tsx            # Step 3: Admission + Cost
+│   ├── DocumentsGenerateStep.tsx        # Step 4: Docs + Review + Generate
+│   └── types.ts                          # Wizard-specific types
+│
+├── InsuranceCardScanner/
+│   ├── index.tsx                         # Camera/upload interface
+│   ├── OCRResultReview.tsx              # Show extracted fields with confidence
+│   └── CardPreview.tsx                  # Thumbnail of scanned card
+│
+├── ClinicalEntry/
+│   ├── VoiceScribeImport.tsx            # Pull data from NEXUS session
+│   ├── ManualClinicalForm.tsx           # Structured manual entry
+│   ├── DiagnosisSearch.tsx              # ICD-10 typeahead search
+│   ├── VitalsEntry.tsx                  # BP, pulse, temp, SpO2, RR
+│   ├── SeverityDisplay.tsx              # Severity scores with color coding
+│   ├── SurgeryDetailsPanel.tsx          # Conditional: surgery fields
+│   ├── InjuryDetailsPanel.tsx           # Conditional: accident/MLC fields
+│   └── MaternityDetailsPanel.tsx        # Conditional: maternity fields
+│
+├── CostEstimation/
+│   ├── index.tsx                         # Cost breakup table
+│   ├── RateCardDefaults.tsx             # Pre-fill from hospital rate card
+│   ├── CoverageCheck.tsx               # Compare total vs sum insured
+│   ├── PackageRateToggle.tsx            # Package rate option
+│   └── CostSummaryBar.tsx              # Running total sticky bar
+│
+├── DocumentUpload/
+│   ├── index.tsx                         # Upload area + checklist
+│   ├── DocumentChecklist.tsx            # Required docs based on diagnosis
+│   ├── UploadZone.tsx                   # Drag-drop / camera capture
+│   ├── DocumentClassifier.tsx           # Auto-classify uploaded file
+│   ├── EvidenceLinking.tsx              # Link upload to voice finding
+│   └── MissingDocsWarning.tsx           # Warning banner for missing docs
+│
+├── MedicalNecessity/
+│   ├── index.tsx                         # Auto-generated statement preview
+│   ├── StrengthIndicator.tsx            # Strong/Moderate/Weak badge
+│   └── NecessityEditor.tsx              # Edit button → textarea
+│
+├── Declarations/
+│   ├── index.tsx                         # All 3 declaration blocks
+│   ├── PatientDeclaration.tsx           # Patient consent checkboxes
+│   ├── DoctorDeclaration.tsx            # Doctor confirmation
+│   └── HospitalDeclaration.tsx          # Hospital signatory
+│
+├── PreAuthOutput/
+│   ├── SuccessScreen.tsx                # Reference ID + action buttons
+│   ├── PDFGenerator.tsx                 # Generate printable PDF
+│   ├── IRDAITextFormatter.tsx           # Part-C formatted text output
+│   └── JSONExporter.tsx                 # Structured JSON for future API
+│
+├── PostSubmission/
+│   ├── StatusTracker.tsx                # Lifecycle status display
+│   ├── TPAQueryResponse.tsx             # Respond to TPA queries inline
+│   ├── EnhancementRequest.tsx           # Request additional amount
+│   └── DenialHandler.tsx                # Show denial reason + suggest fixes
+│
+├── Settings/
+│   ├── HospitalProfile.tsx              # One-time hospital config
+│   ├── DoctorDirectory.tsx              # Manage doctor list
+│   ├── RateCardConfig.tsx               # Room rates, standard fees
+│   └── TPAConfiguration.tsx             # TPA-specific settings
+
+services/
+├── insuranceService.ts                   # Pre-auth generation + formatting
+├── ocrService.ts                         # Insurance card OCR processing
+├── medicalNecessityService.ts           # AI-powered necessity statement generation
+├── icd10Service.ts                       # ICD-10 code lookup and search
+├── documentClassificationService.ts     # Auto-classify uploaded documents
+├── auditService.ts                       # Immutable audit trail logging
+├── storageService.ts                     # Local DB operations (IndexedDB/SQLite)
+├── pdfService.ts                         # PDF generation from pre-auth data
+└── exportService.ts                      # Export to various formats
+
+utils/
+├── admissionDetector.ts                  # Detect admission keywords in transcript
+├── documentRequirements.ts              # Map diagnosis → required documents
+├── costCalculator.ts                     # Auto-calculate cost totals
+├── coverageChecker.ts                   # Compare cost vs sum insured
+├── fieldValidator.ts                     # Validate mandatory IRDAI fields
+├── strengthScorer.ts                     # Score medical necessity strength
+└── formatters.ts                         # Date, currency, phone formatters
+
+config/
+├── hospitalConfig.ts                     # Hospital profile defaults
+├── rateCard.ts                           # Default room/procedure rates
+├── tpaRegistry.ts                        # Known TPAs with portal URLs
+├── icd10Database.ts                      # Local ICD-10 code database
+└── documentRules.ts                      # Diagnosis → document mapping rules
+
+db/
+├── schema.ts                             # Database schema definition
+├── migrations.ts                         # Schema migrations
+└── seed.ts                               # Default data (TPAs, ICD-10, etc.)
+```
+
+***
+
+## TYPE DEFINITIONS
+
+### Create `components/PreAuthWizard/types.ts`:
+
+```typescript
+// ============================================
+// CORE ENUMS AND LITERALS
+// ============================================
+
+export type PreAuthStatus =
+  | 'draft'
+  | 'pending_documents'
+  | 'ready_to_submit'
+  | 'submitted'
+  | 'query_raised'
+  | 'approved'
+  | 'denied'
+  | 'enhancement_requested'
+  | 'closed';
+
+export type EntryPath = 'scan_card' | 'manual' | 'search_existing';
+
+export type ClinicalDataSource = 'voice_scribe' | 'manual_entry';
+
+export type TreatmentLine = 'medical' | 'surgical' | 'intensive_care' | 'investigation' | 'non_allopathic';
+
+export type RoomCategory =
+  | 'General Ward'
+  | 'Semi-Private'
+  | 'Private'
+  | 'Deluxe'
+  | 'ICU'
+  | 'ICCU'
+  | 'NICU'
+  | 'HDU';
+
+export type DocumentCategory =
+  | 'insurance_card_front'
+  | 'insurance_card_back'
+  | 'id_proof'
+  | 'pan_card'
+  | 'policy_copy'
+  | 'admission_letter'
+  | 'chest_xray'
+  | 'cbc'
+  | 'abg'
+  | 'ecg'
+  | 'ct_scan'
+  | 'mri'
+  | 'ultrasound'
+  | 'blood_culture'
+  | 'urine_routine'
+  | 'lft'
+  | 'kft'
+  | 'covid_test'
+  | 'prescription'
+  | 'discharge_summary'
+  | 'other';
+
+export type NecessityStrength = 'strong' | 'moderate' | 'weak';
+
+export type TPAProvider =
+  | 'MDIndia'
+  | 'HealthIndia'
+  | 'Raksha'
+  | 'Paramount'
+  | 'MediAssist'
+  | 'Vidal'
+  | 'FHPL'
+  | 'GoodHealth'
+  | 'Heritage'
+  | 'Other';
+
+// ============================================
+// HOSPITAL CONFIGURATION (SET ONCE)
+// ============================================
+
+export interface HospitalConfig {
+  hospitalName: string;
+  hospitalAddress: string;
+  hospitalCity: string;
+  hospitalState: string;
+  hospitalPincode: string;
+  hospitalPhoneNumber: string;
+  hospitalEmail: string;
+  hospitalRohiniId: string;
+  nabhAccredited: boolean;
+  nablAccredited: boolean;
+  nodalOfficerName: string;
+  nodalOfficerPhone: string;
+  nodalOfficerEmail: string;
+  authorizedSignatoryName: string;
+  authorizedSignatoryDesignation: string;
+  hospitalLogo?: string; // base64 for PDF header
+}
+
+export interface DoctorProfile {
+  id: string;
+  name: string;
+  qualification: string;
+  registrationNumber: string; // State Medical Council
+  registrationCouncil: string; // e.g., "Maharashtra Medical Council"
+  department: string;
+  specialization: string;
+  phone: string;
+  email: string;
+  isActive: boolean;
+}
+
+export interface RateCardEntry {
+  id: string;
+  roomCategory: RoomCategory;
+  roomRentPerDay: number;
+  nursingChargesPerDay: number;
+  icuChargesPerDay?: number;
+  defaultStayDays?: number;
+}
+
+export interface RateCard {
+  entries: RateCardEntry[];
+  defaultOTCharges: number;
+  defaultSurgeonFee: number;
+  defaultAnesthetistFee: number;
+  defaultConsultantFee: number;
+  lastUpdated: string;
+}
+
+// ============================================
+// OCR RESULT FROM INSURANCE CARD
+// ============================================
+
+export interface OCRResult {
+  raw: string;
+  fields: {
+    fieldName: string;
+    value: string;
+    confidence: number; // 0-1
+    boundingBox?: { x: number; y: number; w: number; h: number };
+  }[];
+  extractedData: {
+    patientName?: string;
+    dateOfBirth?: string;
+    age?: number;
+    gender?: 'Male' | 'Female' | 'Other';
+    policyNumber?: string;
+    insurerName?: string;
+    tpaName?: string;
+    tpaIdCardNumber?: string;
+    sumInsured?: number;
+    policyStartDate?: string;
+    policyEndDate?: string;
+    proposerName?: string;
+    insuredName?: string;
+    relationship?: string;
+    employeeId?: string;
+    corporateName?: string;
+  };
+  cardImageFront?: string; // base64
+  cardImageBack?: string;  // base64
+  overallConfidence: number;
+}
+
+// ============================================
+// PATIENT RECORD (AIVANA LOCAL)
+// ============================================
+
+export interface PatientRecord {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+
+  // Demographics
+  patientName: string;
+  dateOfBirth: string;
+  age: number;
+  gender: 'Male' | 'Female' | 'Other';
+  maritalStatus: 'Single' | 'Married' | 'Widowed' | 'Divorced';
+  occupation: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  mobileNumber: string;
+  email: string;
+  uhid?: string; // Hospital's internal ID, manually entered
+
+  // Identity documents
+  aadhaarNumber?: string;
+  panNumber?: string;
+  abhaId?: string;
+
+  // Family physician
+  familyPhysicianName?: string;
+  familyPhysicianContact?: string;
+
+  // Insurance (last known)
+  lastKnownPolicyNumber?: string;
+  lastKnownInsurer?: string;
+  lastKnownTPA?: string;
+}
+
+// ============================================
+// INSURANCE / POLICY DETAILS
+// ============================================
+
+export interface InsurancePolicyDetails {
+  policyNumber: string;
+  policyType: 'Individual' | 'Floater' | 'Corporate' | 'Group';
+  policyStartDate: string;
+  policyEndDate: string;
+  sumInsured: number;
+  balanceSumInsured?: number; // If known
+
+  insurerName: string;
+  tpaName: TPAProvider | string;
+  tpaId?: string;
+  tpaIdCardNumber: string;
+
+  proposerName: string;
+  insuredName: string;
+  relationshipWithProposer: string;
+
+  employeeId?: string;
+  corporateName?: string;
+
+  hasOtherHealthPolicy: boolean;
+  otherPolicyDetails?: string;
+
+  // Source tracking
+  dataSource: 'ocr' | 'manual' | 'existing_record';
+  ocrConfidence?: number;
+  cardImages?: {
+    front?: string; // base64
+    back?: string;
+  };
+}
+
+// ============================================
+// CLINICAL DETAILS
+// ============================================
+
+export interface VoiceCapturedFinding {
+  id: string;
+  type: 'lab_result' | 'imaging' | 'vital' | 'examination' | 'symptom';
+  timestamp: string;
+  rawTranscript: string;
+  structuredInterpretation: {
+    testName: string;
+    result: string;
+    interpretation: 'normal' | 'abnormal_high' | 'abnormal_low' | 'critical' | 'positive' | 'negative';
+    clinicalSignificance: string;
+  };
+  evidenceStatus: 'pending' | 'uploaded' | 'not_required';
+  linkedDocumentId?: string;
+}
+
+export interface Vitals {
+  bp: string;        // e.g., "130/80"
+  pulse: string;     // e.g., "98"
+  temp: string;      // e.g., "101.2"
+  spo2: string;      // e.g., "92"
+  rr: string;        // e.g., "24"
+  recordedAt?: string;
+}
+
+export interface DiagnosisEntry {
+  diagnosis: string;
+  icd10Code: string;
+  icd10Description: string;
+  probability: number; // 0-1
+  reasoning: string;
+  isSelected: boolean; // Doctor selected as primary
+}
+
+export interface SeverityAssessment {
+  phenoIntensity: number;         // 0-1
+  urgencyQuotient: number;        // 0-1
+  deteriorationVelocity: number;  // 0-1
+  overallRisk: 'Low' | 'Moderate' | 'High' | 'Critical';
+  mustNotMiss: boolean;
+  override?: {
+    originalOverallRisk: string;
+    overriddenOverallRisk: string;
+    justification: string;
+  };
+}
+
+export interface ClinicalDetails {
+  dataSource: ClinicalDataSource;
+  nexusSessionId?: string; // If pulled from voice scribe
+
+  chiefComplaints: string;
+  durationOfPresentAilment: string;
+  natureOfIllness: 'Acute' | 'Chronic' | 'Acute on Chronic';
+  historyOfPresentIllness: string; // Detailed narrative
+  relevantClinicalFindings: string;
+  treatmentTakenSoFar?: string; // OPD treatment before admission
+
+  vitals: Vitals;
+
+  diagnoses: DiagnosisEntry[];
+  selectedDiagnosisIndex: number;
+
+  severity: SeverityAssessment;
+
+  proposedLineOfTreatment: {
+    medical: boolean;
+    surgical: boolean;
+    intensiveCare: boolean;
+    investigation: boolean;
+    nonAllopathic: boolean;
+  };
+
+  reasonForHospitalisation: string; // Why OPD is not appropriate
+  expectedOutcome: string;
+
+  surgeryDetails?: {
+    nameOfSurgery: string;
+    surgeryIcdCode?: string;
+    routeOfSurgery: 'Open' | 'Laparoscopic' | 'Endoscopic' | 'Robotic' | 'Other';
+  };
+
+  injuryDetails?: {
+    isInjury: boolean;
+    dateOfInjury?: string;
+    timeOfInjury?: string;
+    causeOfInjury?: string;
+    placeOfInjury?: string;
+    isMLC: boolean;
+    reportedToPolice?: boolean;
+    firNumber?: string;
+    alcoholInvolvement?: boolean;
+  };
+
+  maternityDetails?: {
+    isMaternity: boolean;
+    gravida?: number;
+    para?: number;
+    lmp?: string;
+    edd?: string;
+    deliveryType?: 'Normal' | 'Cesarean' | 'Assisted';
+  };
+
+  voiceCapturedFindings: VoiceCapturedFinding[];
+  additionalClinicalNotes: string;
+}
+
+// ============================================
+// ADMISSION DETAILS
+// ============================================
+
+export interface PastCondition {
+  present: boolean;
+  duration?: string; // e.g., "5 years", "Since 2018"
+}
+
+export interface PastMedicalHistory {
+  diabetes: PastCondition;
+  hypertension: PastCondition;
+  heartDisease: PastCondition;
+  asthma: PastCondition;
+  epilepsy: PastCondition;
+  cancer: PastCondition;
+  kidney: PastCondition;
+  liver: PastCondition;
+  hiv: PastCondition;
+  alcoholism: PastCondition;
+  smoking: PastCondition;
+  anyOther: PastCondition & { details?: string };
+}
+
+export interface AdmissionDetails {
+  dateOfAdmission: string;
+  timeOfAdmission: string;
+  admissionType: 'Emergency' | 'Planned';
+  roomCategory: RoomCategory;
+  expectedLengthOfStay: number;
+  expectedDaysInICU: number;
+  expectedDaysInRoom: number;
+  expectedDateOfDischarge?: string;
+
+  pastMedicalHistory: PastMedicalHistory;
+
+  previousHospitalization: {
+    wasHospitalizedBefore: boolean;
+    details?: string;
+    dateOfLastHospitalization?: string;
+  };
+}
+
+// ============================================
+// COST ESTIMATION
+// ============================================
+
+export interface ImplantEntry {
+  implantName: string;
+  implantCost: number;
+}
+
+export interface CostEstimate {
+  roomRentPerDay: number;
+  expectedRoomDays: number;
+  totalRoomCharges: number;
+
+  nursingChargesPerDay: number;
+  totalNursingCharges: number;
+
+  icuChargesPerDay: number;
+  expectedIcuDays: number;
+  totalIcuCharges: number;
+
+  otCharges: number;
+
+  professionalFees: {
+    surgeonFee: number;
+    anesthetistFee: number;
+    consultantFee: number;
+    otherDoctorFees: number;
+  };
+
+  investigationsEstimate: number;
+  medicinesEstimate: number;
+  consumablesEstimate: number;
+
+  implants: ImplantEntry[];
+  totalImplantsCost: number;
+
+  ambulanceCharges: number;
+  miscCharges: number;
+
+  packageName?: string;
+  packageAmount?: number;
+  isPackageRate: boolean;
+
+  totalEstimatedCost: number;
+  amountClaimedFromInsurer: number;
+  patientResponsibility: number; // total - claimed
+
+  // Validation
+  exceedsSumInsured: boolean;
+  excessAmount: number;
+  copayPercentage?: number;
+  copayAmount?: number;
+}
+
+// ============================================
+// UPLOADED DOCUMENTS
+// ============================================
+
+export interface UploadedDocument {
+  id: string;
+  fileName: string;
+  fileSize: number; // bytes
+  fileSizeDisplay: string; // e.g., "2.3 MB"
+  fileType: 'pdf' | 'image';
+  mimeType: string;
+  uploadedAt: string;
+  base64Data: string;
+
+  documentCategory: DocumentCategory;
+  autoClassified: boolean; // Was category auto-detected?
+  autoClassifyConfidence?: number;
+
+  linkedFindingId?: string;
+  isRequired: boolean;
+  description?: string;
+}
+
+export interface DocumentRequirement {
+  category: DocumentCategory;
+  displayName: string;
+  isRequired: boolean;
+  description: string;
+  status: 'uploaded' | 'missing_required' | 'missing_optional' | 'skipped';
+  linkedDocumentId?: string;
+  linkedFindingId?: string;
+}
+
+// ============================================
+// MEDICAL NECESSITY
+// ============================================
+
+export interface MedicalNecessityStatement {
+  generatedText: string;
+  editedText?: string; // If user modified
+  wasEdited: boolean;
+  strength: NecessityStrength;
+  strengthReasons: string[]; // Why strong/moderate/weak
+  generatedAt: string;
+}
+
+// ============================================
+// DECLARATIONS
+// ============================================
+
+export interface PatientDeclaration {
+  agreedToTerms: boolean;
+  consentForMedicalDataSharing: boolean;
+  agreesToPayNonPayables: boolean;
+  signatureDate: string;
+  signatureTime: string;
+  capturedBy: string; // Insurance desk person name
+}
+
+export interface DoctorDeclaration {
+  doctorId: string;
+  doctorName: string;
+  doctorQualification: string;
+  doctorRegistrationNumber: string;
+  registrationCouncil: string;
+  hospitalName: string;
+  confirmed: boolean;
+  confirmedAt?: string;
+  confirmationMethod: 'in_app' | 'async_notification' | 'verbal';
+  signatureDate: string;
+}
+
+export interface HospitalDeclaration {
+  authorizedSignatoryName: string;
+  designation: string;
+  hospitalSealApplied: boolean;
+  signatureDate: string;
+}
+
+// ============================================
+// FULL PRE-AUTH RECORD
+// ============================================
+
+export interface PreAuthRecord {
+  // Identity
+  id: string; // e.g., "PA-AIVANA-20260303-0042"
+  createdAt: string;
+  updatedAt: string;
+  status: PreAuthStatus;
+  version: number; // Increments on each edit after initial creation
+
+  // Who created
+  createdBy: string; // User name/ID
+  lastEditedBy: string;
+
+  // Phase 2 data
+  patient: PatientRecord;
+  insurance: InsurancePolicyDetails;
+
+  // Phase 3 data
+  clinical: ClinicalDetails;
+
+  // Phase 4 data
+  admission: AdmissionDetails;
+  costEstimate: CostEstimate;
+
+  // Phase 5 data
+  uploadedDocuments: UploadedDocument[];
+  documentRequirements: DocumentRequirement[];
+  medicalNecessity: MedicalNecessityStatement;
+  declarations: {
+    patient: PatientDeclaration;
+    doctor: DoctorDeclaration;
+    hospital: HospitalDeclaration;
+  };
+
+  // Generated outputs
+  outputs: {
+    irdaiTextGenerated: boolean;
+    pdfGenerated: boolean;
+    jsonGenerated: boolean;
+    irdaiText?: string;
+    pdfUrl?: string;
+    jsonData?: string;
+  };
+
+  // Post-submission
+  submission?: {
+    submittedAt: string;
+    submissionMethod: 'email' | 'portal' | 'physical' | 'fax';
+    tpaReferenceNumber?: string;
+    expectedResponseTime?: string;
+  };
+
+  tpaResponse?: {
+    respondedAt: string;
+    status: 'approved' | 'denied' | 'query' | 'partial_approved';
+    approvedAmount?: number;
+    denialReason?: string;
+    queryDetails?: string;
+    deductions?: string;
+    copayNoted?: string;
+    responseDocumentUrl?: string;
+  };
+
+  enhancement?: {
+    requestedAt: string;
+    additionalAmount: number;
+    reason: string;
+    status: 'pending' | 'approved' | 'denied';
+  };
+
+  // Audit trail
+  auditTrail: AuditEntry[];
+}
+
+export interface AuditEntry {
+  timestamp: string;
+  action: string;
+  userId: string;
+  userName: string;
+  fieldChanged?: string;
+  oldValue?: string;
+  newValue?: string;
+  autoFilled: boolean; // Was this auto-filled by system or manually entered?
+  source: 'ocr' | 'voice_scribe' | 'nexus' | 'manual' | 'system' | 'rate_card';
+}
+
+// ============================================
+// WIZARD STATE
+// ============================================
+
+export interface WizardState {
+  currentStep: 1 | 2 | 3 | 4;
+  entryPath: EntryPath | null;
+  clinicalDataSource: ClinicalDataSource | null;
+  isValid: {
+    step1: boolean;
+    step2: boolean;
+    step3: boolean;
+    step4: boolean;
+  };
+  isDirty: boolean; // Unsaved changes?
+  lastSavedAt?: string;
+  preAuthId?: string; // Set after first auto-save
+}
+```
+
+***
+
+## PHASE 1: DASHBOARD
+
+### Create `components/Dashboard/index.tsx`
+
+**Purpose:** The landing page when user opens Aivana's insurance module.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  AIVANA Insurance                                    🔔 3   ⚙️ Settings │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  [ + New Pre-Authorization ]                                   │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                     │
+│  │  3   │  │  1   │  │  5   │  │  2   │  │  1   │                     │
+│  │Draft │  │Pending│  │Submt │  │Apprvd│  │Query │                     │
+│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘                     │
+│                                                                          │
+│  🔍 Search by patient name, policy number, reference ID...              │
+│                                                                          │
+│  ┌───────────────────────────────────────────────────────────────┐      │
+│  │ PA-AIVANA-20260303-0042  │ Ramesh Patil │ J18.9    │ ✅ Approved│   │
+│  │ PA-AIVANA-20260303-0041  │ Priya Shah   │ I21.0    │ ⏳ Submitted│   │
+│  │ PA-AIVANA-20260302-0040  │ Amit Kumar   │ A41.9    │ ❓ Query   │   │
+│  │ PA-AIVANA-20260302-0039  │ Sunita Devi  │ J44.1    │ 📝 Draft   │   │
+│  └───────────────────────────────────────────────────────────────┘      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Behavior:**
+- Status count cards at top are clickable filters
+- Queue is sortable by date, status, patient name
+- Each row is clickable → opens that pre-auth (in edit mode if draft, in read mode if submitted/approved)
+- "Query" status rows show a red dot and are pinnable to top
+- 🔔 bell shows count of: pending drafts (>24 hours old), TPA queries needing response, documents still missing
+- ⚙️ opens Settings (Hospital Profile, Doctor Directory, Rate Card)
+- Auto-refresh every 60 seconds (for future portal integration)
+
+**Data source:** `storageService.ts` → reads from local IndexedDB
+
+***
+
+## PHASE 2: PATIENT + INSURANCE (Step 1 of Wizard)
+
+### Create `components/PreAuthWizard/PatientInsuranceStep.tsx`
+
+**Purpose:** Capture patient identity and insurance policy details in one step.
+
+**Initial Screen — Entry Path Selection:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 1 of 4: Patient & Insurance Details                            │
+│  ─────────────────────────────────────────                           │
+│                                                                      │
+│  How would you like to start?                                        │
+│                                                                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
+│  │                  │  │                  │  │                  │     │
+│  │  📷              │  │  ✏️              │  │  🔍              │     │
+│  │                  │  │                  │  │                  │     │
+│  │  Scan Insurance  │  │  Enter           │  │  Search          │     │
+│  │  Card            │  │  Manually        │  │  Existing        │     │
+│  │                  │  │                  │  │  Patient          │     │
+│  │  Fastest - just  │  │  Type patient &  │  │  Previously      │     │
+│  │  photograph the  │  │  policy details  │  │  created in      │     │
+│  │  insurance card  │  │  by hand         │  │  Aivana          │     │
+│  │                  │  │                  │  │                  │     │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Path A: Scan Insurance Card
+
+**Flow:**
+1. Camera opens (mobile) or file upload dialog (desktop)
+2. User captures/uploads front of card
+3. System prompts: "Now capture the back of the card" (optional)
+4. Loading spinner with "Extracting details from card..."
+5. OCR service processes images via `services/ocrService.ts` (uses Gemini vision API)
+6. Results displayed in editable form
+
+**OCR Result Review Screen:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ✅ Card scanned successfully (87% confidence)                       │
+│                                                                      │
+│  ┌──────────────────┐  ┌────────────────────────────────────┐       │
+│  │                   │  │  EXTRACTED DETAILS                  │       │
+│  │  [Card thumbnail] │  │                                    │       │
+│  │                   │  │  Patient Name: Ramesh Patil    🟢  │       │
+│  │                   │  │  DOB: 15/06/1975              🟢  │       │
+│  │                   │  │  Gender: Male                  🟢  │       │
+│  │                   │  │  Policy No: STH/2025/12345    🟢  │       │
+│  │                   │  │  Insurer: Star Health          🟢  │       │
+│  │                   │  │  TPA: MDIndia                  🟢  │       │
+│  │                   │  │  TPA Card No: MD/98765        🟡  │       │
+│  │                   │  │  Sum Insured: ₹5,00,000       🟢  │       │
+│  │                   │  │  Valid: 01/04/2025-31/03/2026 🟢  │       │
+│  │                   │  │  Employee ID: ___________     🔴  │       │
+│  │                   │  │                                    │       │
+│  │                   │  │  🟢 High confidence                │       │
+│  │                   │  │  🟡 Review recommended             │       │
+│  │                   │  │  🔴 Not detected - enter manually  │       │
+│  └──────────────────┘  └────────────────────────────────────┘       │
+│                                                                      │
+│  All fields are editable. Please verify and correct if needed.       │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Confidence indicators:**
+- 🟢 Green: confidence > 0.85 — pre-filled, no action needed
+- 🟡 Yellow: confidence 0.5-0.85 — pre-filled but highlighted for review
+- 🔴 Red: confidence < 0.5 or not detected — empty, user must enter
+
+**After OCR review, show remaining fields that cannot come from a card:**
+- Marital status, occupation (dropdowns)
+- Full address, city, state, pincode
+- Mobile number, email
+- Aadhaar / PAN / ABHA ID (optional)
+- UHID (hospital's own ID, if they use one)
+- Has other health policy? (Yes/No toggle → details if Yes)
+
+### Path B: Manual Entry
+
+Show the full form with all fields empty. Organized in collapsible sections:
+
+**Section A: Patient Demographics**
+- Patient name * (text)
+- Date of birth (date picker) → auto-calculates age
+- Age * (number, auto-filled from DOB or manually entered)
+- Gender * (radio: Male / Female / Other)
+- Marital status (dropdown)
+- Occupation (text)
+- Mobile number * (tel input with +91 prefix)
+- Email (email input)
+- Address, City *, State * (dropdown of Indian states), Pincode * (6-digit)
+- UHID (text, optional)
+- Aadhaar (text, optional, 12-digit masked input)
+- PAN (text, optional)
+- ABHA ID (text, optional)
+
+**Section B: Insurance / Policy Details**
+- Insurance company * (text with autocomplete from known insurers list)
+- TPA name * (dropdown of TPAProvider + "Other" with free text)
+- Policy number * (text)
+- TPA ID card number (text)
+- Policy type (radio: Individual / Floater / Corporate / Group)
+- If Corporate/Group → Employee ID, Corporate Name fields appear
+- Policy start date (date picker)
+- Policy end date (date picker) → validate: is policy active today? Warning if expired.
+- Sum insured * (number input, formatted as ₹)
+- Proposer name (text, defaults to patient name)
+- Insured name (text, defaults to patient name)
+- Relationship with proposer (dropdown: Self / Spouse / Son / Daughter / Father / Mother / Other)
+- Has other health policy? (toggle → details textarea if Yes)
+
+### Path C: Search Existing
+
+- Search bar: type patient name, mobile number, UHID, or policy number
+- Results list shows: Name, Age, Gender, Last Policy Number, Last Visit Date
+- Click to select → all known fields pre-fill
+- User can update any changed details (new policy number, etc.)
+
+### Validation for Step 1:
+- Mandatory: Patient name, age, gender, mobile number, city, state, insurance company, TPA, policy number, sum insured
+- Warnings (non-blocking): Policy expired, policy expiring within 7 days, sum insured seems low for typical admission
+- Auto-save to local DB as draft every 30 seconds
+
+***
+
+## PHASE 3: CLINICAL DETAILS (Step 2 of Wizard)
+
+### Create `components/PreAuthWizard/ClinicalDetailsStep.tsx`
+
+**Purpose:** Capture or import all clinical information needed for pre-authorization.
+
+**Initial Source Selection:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 2 of 4: Clinical Details                                       │
+│  ─────────────────────────────                                       │
+│                                                                      │
+│  How would you like to enter clinical details?                       │
+│                                                                      │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐         │
+│  │                           │  │                           │         │
+│  │  🎙️ Import from Voice    │  │  ✏️ Enter Manually        │         │
+│  │     Scribe Session       │  │                           │         │
+│  │                           │  │  Type clinical details    │         │
+│  │  Auto-fill from today's  │  │  into structured form     │         │
+│  │  consultation recording  │  │                           │         │
+│  │                           │  │                           │         │
+│  │  ⚡ Recommended           │  │                           │         │
+│  └──────────────────────────┘  └──────────────────────────┘         │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Source A: Import from Voice Scribe
+
+**Flow:**
+1. System shows list of today's NEXUS sessions for this patient (matched by name) or all recent sessions
+2. User selects the relevant session
+3. System auto-populates:
+   - Chief complaints (from transcript extraction)
+   - Duration of present ailment (from conversation context)
+   - History of present illness (narrative from transcript)
+   - Clinical findings (from doctor's dictation)
+   - Vitals (if captured during session)
+   - Diagnosis list with ICD-10 codes and probabilities (from NEXUS DDx)
+   - Severity scores (PhenoIntensity, UrgencyQuotient, DeteriorationVelocity)
+   - Voice-captured findings (test interpretations mentioned by doctor)
+   - Treatment already taken (if mentioned in conversation)
+4. All fields are editable — doctor/insurance desk can modify anything
+5. Auto-filled fields are tagged with a small "🎙️ Voice" badge for audit trail
+
+**What the user sees after import:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ✅ Imported from session: Dr. Sharma - 03 Mar 2026, 10:45 AM       │
+│  ─────────────────────────────────────────────────────────────────   │
+│                                                                      │
+│  CHIEF COMPLAINTS                                          🎙️ Voice │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Fever since 5 days, cough with expectoration, breathlessness│    │
+│  │ on exertion since 2 days                                    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  DURATION: 5 days                                          🎙️ Voice │
+│  NATURE OF ILLNESS: [Acute ▼]                                       │
+│                                                                      │
+│  HISTORY OF PRESENT ILLNESS                                🎙️ Voice │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Patient presents with high-grade fever since 5 days with    │    │
+│  │ productive cough and yellowish sputum. Developed progressive│    │
+│  │ breathlessness on exertion since 2 days. No hemoptysis.     │    │
+│  │ Treated with oral amoxicillin for 3 days without relief.    │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  VITALS                                                    🎙️ Voice │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐           │
+│  │BP      │ │Pulse   │ │Temp    │ │SpO2    │ │RR      │           │
+│  │130/80  │ │110/min │ │101.8°F │ │91%  ⚠️ │ │26/min  │           │
+│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘           │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Source B: Manual Entry
+
+Same form layout but all fields are empty. Sections:
+
+**A. Presenting Illness**
+- Chief complaints * (textarea, 3 rows)
+- Duration of present ailment * (text, e.g., "5 days")
+- Nature of illness * (dropdown: Acute / Chronic / Acute on Chronic)
+- History of present illness (textarea, 5 rows, placeholder: "Describe onset, progression, associated symptoms, treatment taken...")
+- Treatment taken so far (textarea, 2 rows, placeholder: "OPD treatment, medications tried...")
+
+**B. Clinical Findings**
+- Relevant clinical findings * (textarea, 3 rows)
+- Vitals entry: BP, Pulse, Temp, SpO2, RR (individual inputs with units)
+  - SpO2 < 94: auto-highlight in red
+  - Temp > 100.4°F: auto-highlight in yellow
+  - Pulse > 100 or < 60: auto-highlight in yellow
+
+**C. Diagnosis**
+- Primary diagnosis * (typeahead search component)
+  - User types → system searches local ICD-10 database
+  - Shows: "J18.9 - Pneumonia, unspecified"
+  - User selects → ICD-10 code auto-fills
+- "Add differential diagnosis" button → adds more rows
+- If imported from NEXUS: shows radio buttons to select primary from DDx list with probability bars
+
+**D. Severity Assessment**
+- If from voice scribe: shows 3 cards with scores and color coding
+  ```
+  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+  │ Pheno        │ │ Urgency      │ │ Deterioration│
+  │ Intensity    │ │ Quotient     │ │ Velocity     │
+  │              │ │              │ │              │
+  │  ████░░ 0.72 │ │  █████░ 0.85 │ │  ████░░ 0.68 │
+  │  HIGH     🟠 │ │  CRITICAL 🔴 │ │  MODERATE 🟡 │
+  └──────────────┘ └──────────────┘ └──────────────┘
+  
+  Overall Risk: HIGH
+  [ ] Override severity assessment
+      → Justification: ___________________
+  ```
+- If manual entry: dropdown for overall risk (Low / Moderate / High / Critical) with free text justification
+
+**E. Treatment Plan**
+- Proposed line of treatment * (checkboxes, at least one required):
+  - [ ] Medical Management
+  - [ ] Surgical Management → expands surgery panel
+  - [ ] Intensive Care
+  - [ ] Investigation Only
+  - [ ] Non-Allopathic
+- Reason for hospitalisation * (textarea, placeholder: "Why can't this be managed on OPD basis?")
+  - Smart suggestion button: "✨ Auto-generate" → AI generates reason based on diagnosis + severity + vitals
+
+**F. Surgery Details Panel** (shown only if Surgical is checked):
+- Name of surgery * (text)
+- Surgery ICD code (text, optional)
+- Route * (dropdown: Open / Laparoscopic / Endoscopic / Robotic / Other)
+
+**G. Injury Details Panel** (shown only if user toggles "Is this an injury/accident?"):
+- Date of injury (date picker)
+- Time of injury (time picker)
+- Cause (text)
+- Place of injury (text)
+- Is MLC? * (Yes/No radio)
+- Reported to police? (Yes/No)
+- FIR number (text, shown if reported = Yes)
+- Alcohol involvement? (Yes/No)
+
+**H. Maternity Details Panel** (shown only if user toggles "Is this a maternity case?"):
+- Gravida (number)
+- Para (number)
+- LMP (date picker)
+- EDD (date picker, auto-calculated from LMP)
+- Expected delivery type (dropdown: Normal / Cesarean / Assisted)
+
+**I. Voice-Captured Findings** (shown only if imported from voice scribe):
+- List of findings with interpretation badges
+- Each can be marked "not required for pre-auth"
+
+**J. Additional Notes**
+- Free text textarea
+- Placeholder: "Any additional context for TPA reviewer..."
+
+### Smart Behaviors in Step 2:
+- If SpO2 < 90 and ICU not checked in treatment plan → yellow warning: "SpO2 suggests ICU may be needed"
+- If diagnosis is chronic (e.g., COPD) but nature of illness is "Acute" → soft prompt: "Did you mean Acute on Chronic?"
+- If diagnosis + past history mismatch (e.g., "COPD exacerbation" but asthma/COPD not in history) → warning
+- "Reason for hospitalisation" auto-suggestion based on severity + vitals + diagnosis
+
+### Validation for Step 2:
+- Mandatory: Chief complaints, duration, nature of illness, at least one diagnosis with ICD-10, at least one treatment line checked, reason for hospitalisation
+- Warnings: Missing vitals, no clinical findings text, severity seems inconsistent with vitals
+
+***
+
+## PHASE 4: ADMISSION + COST ESTIMATION (Step 3 of Wizard)
+
+### Create `components/PreAuthWizard/AdmissionCostStep.tsx`
+
+**Purpose:** Capture admission logistics, past history, and cost breakup.
+
+**Layout: Two sections, one scrollable page**
+
+### Section A: Admission Details
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ADMISSION DETAILS                                                   │
+│                                                                      │
+│  Admission Type *:  (●) Emergency  ( ) Planned                      │
+│                                                                      │
+│  Date of Admission *: [03/03/2026]  Time *: [04:30 AM]             │
+│                                                                      │
+│  Room Category *: [ General Ward ▼ ]                                │
+│                                                                      │
+│  Expected Stay:                                                      │
+│    Days in Ward: [ 5 ]   Days in ICU: [ 2 ]   Total: 7 days        │
+│                                                                      │
+│  Expected Discharge Date: 10/03/2026 (auto-calculated)              │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- If Emergency selected: date and time default to now
+- Room category dropdown pre-selects based on severity (Critical → ICU, High → Semi-Private or ICU, etc.)
+- Expected stay gets smart default from diagnosis (pneumonia → 5-7 days, appendectomy → 3-4 days)
+- Discharge date auto-calculates from admission date + total days
+
+### Section B: Past Medical History
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  PAST MEDICAL HISTORY                                                │
+│                                                                      │
+│  Select any pre-existing conditions:                                 │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ [✓] Diabetes          Since: [5 years    ]                  │    │
+│  │ [✓] Hypertension      Since: [3 years    ]                  │    │
+│  │ [ ] Heart Disease      Since: [           ]                  │    │
+│  │ [ ] Asthma/COPD        Since: [           ]                  │    │
+│  │ [ ] Epilepsy           Since: [           ]                  │    │
+│  │ [ ] Cancer             Since: [           ]                  │    │
+│  │ [ ] Kidney Disease     Since: [           ]                  │    │
+│  │ [ ] Liver Disease      Since: [           ]                  │    │
+│  │ [ ] HIV/STD            Since: [           ]                  │    │
+│  │ [ ] Alcoholism         Since: [           ]                  │    │
+│  │ [ ] Smoking            Since: [           ]                  │    │
+│  │ [ ] Other: [_______________________________]                 │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  Previously hospitalized? (●) No  ( ) Yes                            │
+│  If Yes: Details: [__________]  Last date: [__/__/____]             │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- "Since" field appears only when checkbox is checked
+- Accepts free text: "5 years", "Since 2018", "10 yrs" etc.
+- If voice scribe captured past history mentions, pre-fill checkboxes
+
+### Section C: Cost Estimation
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ESTIMATED COST BREAK-UP                                             │
+│                                                                      │
+│  💡 Defaults loaded from your hospital's rate card. Adjust as needed.│
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Cost Head              │ Rate      │ Qty/Days │ Total (₹)  │    │
+│  │────────────────────────┼───────────┼──────────┼────────────│    │
+│  │ Room Rent              │ 2,500/day │  5 days  │   12,500   │    │
+│  │ Nursing Charges        │   800/day │  5 days  │    4,000   │    │
+│  │ ICU Charges            │ 8,000/day │  2 days  │   16,000   │    │
+│  │ OT Charges             │     —     │    —     │   15,000   │    │
+│  │────────────────────────┼───────────┼──────────┼────────────│    │
+│  │ Surgeon Fee            │     —     │    —     │   25,000   │    │
+│  │ Anesthetist Fee        │     —     │    —     │   10,000   │    │
+│  │ Consultant Fee         │     —     │    —     │    5,000   │    │
+│  │ Other Doctor Fees      │     —     │    —     │        0   │    │
+│  │────────────────────────┼───────────┼──────────┼────────────│    │
+│  │ Investigations         │     —     │    —     │    8,000   │    │
+│  │ Medicines              │     —     │    —     │   15,000   │    │
+│  │ Consumables            │     —     │    —     │    6,000   │    │
+│  │ Implants               │  [ + Add Implant ]   │        0   │    │
+│  │ Ambulance              │     —     │    —     │        0   │    │
+│  │ Miscellaneous          │     —     │    —     │    2,000   │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  [ ] Apply Package Rate: [Package name: ________] Amount: ₹[______] │
+│  (If checked, package amount replaces individual line items)         │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                                                              │    │
+│  │  TOTAL ESTIMATED COST:          ₹1,18,500                   │    │
+│  │  Amount Claimed from Insurer:   ₹1,18,500  [edit]           │    │
+│  │  Patient Responsibility:        ₹0                          │    │
+│  │                                                              │    │
+│  │  ✅ Within sum insured (₹5,00,000)                          │    │
+│  │                                                              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  Co-pay applicable? ( ) No (●) Yes → Percentage: [10]%             │
+│  Co-pay Amount: ₹11,850                                             │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Smart Behaviors:**
+- Room rent, nursing, ICU rates pre-fill from `config/rateCard.ts` based on selected room category
+- Days pre-fill from admission details (ward days, ICU days)
+- `totalRoomCharges = roomRentPerDay × expectedRoomDays` auto-calculates on any change
+- Same for nursing and ICU
+- Running total recalculates live
+- If `totalEstimatedCost > sumInsured`: red warning banner:
+  ```
+  ⚠️ Estimated cost ₹1,18,500 exceeds sum insured ₹1,00,000 by ₹18,500.
+  Patient may need to pay the excess amount.
+  ```
+- "Amount claimed from insurer" defaults to `min(totalEstimatedCost, sumInsured)` but is editable
+- `patientResponsibility = totalEstimatedCost - amountClaimedFromInsurer`
+- Package rate toggle: if checked, shows package name + flat amount; individual rows become read-only/grayed
+- "Add Implant" button adds a row with implant name + cost fields
+- If treatment line does NOT include surgical, hide OT charges and surgeon/anesthetist fees (or zero them)
+
+### Validation for Step 3:
+- Mandatory: Admission type, date, time, room category, at least ward or ICU days > 0, total estimated cost > 0, amount claimed > 0
+- Warnings: All costs zero (probably forgot to fill), amount claimed > sum insured (not allowed), implants listed but cost is 0
+
+***
+
+## PHASE 5: DOCUMENTS + REVIEW + GENERATE (Step 4 of Wizard)
+
+### Create `components/PreAuthWizard/DocumentsGenerateStep.tsx`
+
+**Purpose:** Upload evidence, review auto-generated medical necessity, confirm declarations, generate output.
+
+**This step has 4 sub-sections (tabbed or scrollable):**
+
+### Sub-section A: Document Upload
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  SUPPORTING DOCUMENTS                                                │
+│                                                                      │
+│  Required for: Pneumonia (J18.9)                                     │
+│                                                                      │
+│  CLINICAL EVIDENCE                                                   │
+│  ✅ Chest X-Ray ────────── chest_xray_ramesh.pdf (1.2 MB)          │
+│  ⚠️ CBC Report ─────────── Required - Not uploaded                   │
+│  ⚠️ ABG Report ─────────── Required - Not uploaded                   │
+│  ○  Blood Culture ──────── Optional                                  │
+│  ○  ECG ────────────────── Optional                                  │
+│                                                                      │
+│  ADMINISTRATIVE DOCUMENTS                                            │
+│  ✅ Insurance Card ─────── Scanned in Step 1                         │
+│  ○  ID Proof (Aadhaar) ── Optional                                   │
+│  ○  PAN Card ───────────── Optional (required if cost > ₹1 lakh)   │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                                                              │    │
+│  │         📷 📁 Drop files here or click to upload            │    │
+│  │         PDF, JPG, PNG (max 10MB each)                       │    │
+│  │                                                              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  On upload → "What document is this?"                                │
+│  [ Chest X-Ray ▼ ] → auto-suggested from filename                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**If voice-captured findings exist:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  🎙️ VOICE-CAPTURED FINDINGS WITHOUT EVIDENCE                       │
+│                                                                      │
+│  You mentioned these during consultation. Upload reports to          │
+│  strengthen the pre-auth:                                            │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 🔬 CBC - "Hemoglobin 8.2, TLC 18,000"          ⚠️ Pending  │    │
+│  │    Upload CBC report  |  Skip - not required                │    │
+│  ├─────────────────────────────────────────────────────────────┤    │
+│  │ 🔬 Chest X-Ray - "Right lower lobe consolidation" ✅ Linked │    │
+│  │    Linked to: chest_xray_ramesh.pdf                         │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Upload flow:**
+1. User drops/selects file
+2. System attempts auto-classification via filename analysis (`utils/documentClassificationService.ts`)
+3. Dropdown shows suggested category; user confirms or changes
+4. If a voice-captured finding matches (e.g., "CBC" finding and "CBC" category), system auto-links and asks: "Link this to your CBC finding?"
+5. Document appears in uploaded list with category, size, linked finding
+
+**Missing docs warning (if required docs not uploaded):**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  ⚠️ 2 required documents missing: CBC Report, ABG Report            │
+│                                                                      │
+│  Pre-auth will be flagged as "PENDING DOCUMENTS" and may be         │
+│  queried or delayed by TPA.                                         │
+│                                                                      │
+│  [ ] I understand and want to proceed with missing documents         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Sub-section B: Medical Necessity Preview
+
+**Auto-generated from all data collected in Steps 1-3 + documents:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  MEDICAL NECESSITY STATEMENT                    Strength: 🟢 STRONG │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ Patient Ramesh Patil, 50 year old Male, presents with       │    │
+│  │ community-acquired pneumonia (ICD-10: J18.9) with a         │    │
+│  │ diagnostic confidence of 85%.                                │    │
+│  │                                                              │    │
+│  │ CLINICAL PRESENTATION:                                       │    │
+│  │ High-grade fever since 5 days with productive cough and      │    │
+│  │ yellowish sputum. Progressive breathlessness on exertion     │    │
+│  │ since 2 days. Failed outpatient oral antibiotic therapy      │    │
+│  │ (amoxicillin × 3 days).                                     │    │
+│  │                                                              │    │
+│  │ KEY FINDINGS:                                                │    │
+│  │ • Chest X-Ray: Right lower lobe consolidation               │    │
+│  │ • CBC: Hemoglobin 8.2 g/dL, TLC 18,000/mm³                 │    │
+│  │                                                              │    │
+│  │ VITAL SIGNS AT PRESENTATION:                                 │    │
+│  │ BP: 130/80 mmHg | Pulse: 110/min | Temp: 101.8°F           │    │
+│  │ SpO2: 91% on room air | RR: 26/min                         │    │
+│  │                                                              │    │
+│  │ SEVERITY ASSESSMENT:                                         │    │
+│  │ Overall Risk: HIGH                                           │    │
+│  │ • Severe symptom presentation (PhenoIntensity 0.72)         │    │
+│  │ • Time-critical intervention required (UrgencyQ 0.85)       │    │
+│  │ • Hypoxia (SpO2 91%)                                        │    │
+│  │                                                              │    │
+│  │ MEDICAL NECESSITY JUSTIFICATION:                             │    │
+│  │ Hospitalization is medically necessary due to:               │    │
+│  │ • Hypoxia requiring supplemental oxygen (SpO2 91%)          │    │
+│  │ • Failed outpatient antibiotic therapy                       │    │
+│  │ • Need for IV antibiotics and continuous monitoring          │    │
+│  │ • High risk of rapid deterioration                           │    │
+│  │                                                              │    │
+│  │ OPD MANAGEMENT NOT APPROPRIATE BECAUSE:                      │    │
+│  │ • Oxygen requirement cannot be met at home                   │    │
+│  │ • Severity precludes safe outpatient management              │    │
+│  │ • Need for IV medications and continuous monitoring          │    │
+│  │                                                              │    │
+│  │ PROPOSED MANAGEMENT:                                         │    │
+│  │ • Admission to General Ward with ICU standby                 │    │
+│  │ • Expected length of stay: 7 days (5 ward + 2 ICU)          │    │
+│  │ • IV antibiotics, oxygen therapy, supportive care            │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  [ ✏️ Edit ]                                                         │
+│                                                                      │
+│  Strength Analysis:                                                  │
+│  ✅ Diagnosis supported by clinical findings                         │
+│  ✅ Vitals justify severity assessment                               │
+│  ✅ Clear OPD contraindication reasons                               │
+│  ⚠️ 2 supporting documents pending                                   │
+│  ✅ Cost estimate within normal range for diagnosis                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Strength scoring logic** (`utils/strengthScorer.ts`):
+- **Strong**: All required docs uploaded + vitals support severity + diagnosis-findings consistent + OPD reason clear + cost in normal range
+- **Moderate**: 1-2 of the above missing
+- **Weak**: 3+ of the above missing
+
+**Edit flow:**
+- Click "Edit" → textarea replaces the read-only view
+- User can modify any text
+- "Reset to auto-generated" button available
+- If edited, `wasEdited: true` is set in audit trail
+
+### Sub-section C: Summary Card
+
+Quick visual summary of the entire pre-auth:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  PRE-AUTHORIZATION SUMMARY                                           │
+│                                                                      │
+│  Patient: Ramesh Patil, 50M                                          │
+│  Policy: STH/2025/12345 (Star Health via MDIndia)                   │
+│  Diagnosis: Pneumonia (J18.9) — Confidence: 85%                     │
+│  Severity: HIGH                                                      │
+│  Admission: Emergency, 03/03/2026 04:30 AM                          │
+│  Stay: 7 days (5 ward + 2 ICU)                                      │
+│  Total Cost: ₹1,18,500 | Claimed: ₹1,18,500                        │
+│  Documents: 3 attached, 2 pending                                    │
+│  Necessity Strength: 🟢 STRONG                                      │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Sub-section D: Declarations
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  DECLARATIONS                                                        │
+│                                                                      │
+│  ── PATIENT / INSURED DECLARATION ──────────────────────────────    │
+│  I hereby declare that the information furnished above is true and   │
+│  correct. I authorize the insurance company/TPA and the hospital to  │
+│  share my medical records for the purpose of processing this claim.  │
+│  I agree to pay any non-payable items as per policy terms.           │
+│                                                                      │
+│  [✓] Patient/attendant has been informed and consents                │
+│  [✓] Patient agrees to pay non-payable items                        │
+│  [✓] Consent for sharing medical data with insurer/TPA              │
+│                                                                      │
+│  Captured by: [Insurance desk person name: ________]                │
+│                                                                      │
+│  ── TREATING DOCTOR'S DECLARATION ──────────────────────────────    │
+│  I hereby declare that the information provided is accurate and the  │
+│  proposed treatment is necessary based on my clinical judgment.       │
+│                                                                      │
+│  Doctor: [Dr. Sharma ▼] (from doctor directory)                     │
+│  Qualification: MD (Pulmonology)                                     │
+│  Registration: MH/2005/12345 — Maharashtra Medical Council          │
+│                                                                      │
+│  Confirmation: ( ) Doctor confirms in-app now                        │
+│                (

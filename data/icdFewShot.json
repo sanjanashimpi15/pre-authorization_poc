@@ -1,0 +1,72 @@
+{
+  "ophthalmology": [
+    {
+      "reviewed": false,
+      "input": "Senile Immature Cataract, Right Eye",
+      "expectedOutput": { "code": "H25.9", "description": "Senile cataract, unspecified" }
+    }
+  ],
+  "maternity": [
+    {
+      "reviewed": false,
+      "input": "Maternity (Repeat LSCS)",
+      "expectedOutput": { "code": "O82", "description": "Single delivery by caesarean section" }
+    }
+  ],
+  "gynecology": [
+    {
+      "reviewed": true,
+      "input": "Uterine Fibroids (Intramural)",
+      "expectedOutput": { "code": "D25.1", "description": "Intramural leiomyoma of uterus" }
+    }
+  ],
+  "orthopedics": [
+    {
+      "reviewed": true,
+      "input": "Primary Osteoarthritis Right Knee",
+      "expectedOutput": { "code": "M17.1", "description": "Other primary gonarthrosis" }
+    }
+  ],
+  "ckd": [
+    {
+      "reviewed": false,
+      "input": "End Stage Renal Disease on Maintenance Hemodialysis",
+      "expectedOutput": { "code": "N18.6", "description": "End stage renal disease" }
+    }
+  ],
+  "dengue": [
+    {
+      "reviewed": false,
+      "input": "Dengue Hemorrhagic Fever",
+      "expectedOutput": { "code": "A91", "description": "Dengue haemorrhagic fever" }
+    }
+  ],
+  "typhoid": [
+    {
+      "reviewed": false,
+      "input": "Typhoid Fever",
+      "expectedOutput": { "code": "A01.0", "description": "Typhoid fever" }
+    }
+  ],
+  "appendicitis": [
+    {
+      "reviewed": false,
+      "input": "Acute Appendicitis with Localized Peritonitis",
+      "expectedOutput": { "code": "K35.3", "description": "Acute appendicitis with localized peritonitis" }
+    }
+  ],
+  "gastroenteritis": [
+    {
+      "reviewed": false,
+      "input": "Acute Gastroenteritis with Dehydration",
+      "expectedOutput": { "code": "K52.9", "description": "Noninfective gastroenteritis and colitis, unspecified" }
+    }
+  ],
+  "cardiac": [
+    {
+      "reviewed": false,
+      "input": "Triple Vessel Disease / Coronary Artery Disease",
+      "expectedOutput": { "code": "I25.1", "description": "Atherosclerotic heart disease" }
+    }
+  ]
+}

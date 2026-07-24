@@ -1,0 +1,7 @@
+{
+  "name": "OPD Platform",
+  "description": "A professional OPD platform and clinical assistant for doctors in India — providing safe, reliable, and multilingual health conversations.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

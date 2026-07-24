@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Insurance Pre-Auth Module</title>
+  <!-- Google Fonts: Lora and Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      document.body.innerHTML += '<div style="color:red; background:white; z-index:9999; position:absolute; top:0; left:0; width:100%; padding:20px;"><h1>Error</h1><p>' + msg + '</p><pre>' + (error ? error.stack : '') + '</pre></div>';
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      document.body.innerHTML += '<div style="color:red; background:white; z-index:9999; position:absolute; top:0; left:0; width:100%; padding:20px;"><h1>Unhandled Promise Rejection</h1><p>' + event.reason + '</p></div>';
+    });
+  </script>
+  
+  <!-- PDF.js, pdf-lib, and html2pdf.js for client-side PDF downsampling, compression & rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    }
+  </script>
+
+
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.19.0"
+  }
+}
+</script>
+</head>
+
+<body class="bg-opd-bg text-opd-text-primary antialiased font-sans">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

@@ -1,0 +1,58 @@
+import { HospitalConfig, DoctorProfile } from '../components/PreAuthWizard/types';
+
+export const DEFAULT_HOSPITAL_CONFIG: HospitalConfig = {
+    hospitalName: 'Aivana Multi-Specialty Hospital',
+    hospitalAddress: '123 Medical Complex, Healthcare Road',
+    hospitalCity: 'Mumbai',
+    hospitalState: 'Maharashtra',
+    hospitalPincode: '400001',
+    hospitalPhoneNumber: '+91-22-12345678',
+    hospitalEmail: 'insurance@aivanahospital.com',
+    hospitalRohiniId: 'ROHINI12345',
+    nabhAccredited: true,
+    nablAccredited: true,
+    nodalOfficerName: 'Mr. Suresh Kothiyal',
+    nodalOfficerPhone: '+91-9876543210',
+    nodalOfficerEmail: 'nodal@aivanahospital.com',
+    authorizedSignatoryName: 'Dr. Priya Menon',
+    authorizedSignatoryDesignation: 'Medical Director',
+};
+
+export const DEFAULT_DOCTORS: DoctorProfile[] = [
+    {
+        id: 'DOC001',
+        name: 'Dr. Arun Sharma',
+        qualification: 'MD (General Medicine)',
+        registrationNumber: 'MH/2008/12345',
+        registrationCouncil: 'Maharashtra Medical Council',
+        department: 'Internal Medicine',
+        specialization: 'General Medicine',
+        phone: '+91-9876501234',
+        email: 'dr.arun@aivanahospital.com',
+        isActive: true,
+    },
+    {
+        id: 'DOC002',
+        name: 'Dr. Sunita Patel',
+        qualification: 'MS (General Surgery)',
+        registrationNumber: 'MH/2010/23456',
+        registrationCouncil: 'Maharashtra Medical Council',
+        department: 'Surgery',
+        specialization: 'General & Laparoscopic Surgery',
+        phone: '+91-9876502345',
+        email: 'dr.sunita@aivanahospital.com',
+        isActive: true,
+    },
+    {
+        id: 'DOC003',
+        name: 'Dr. Vikram Nair',
+        qualification: 'DM (Cardiology)',
+        registrationNumber: 'KL/2009/34567',
+        registrationCouncil: 'Travancore Cochin Medical Council',
+        department: 'Cardiology',
+        specialization: 'Interventional Cardiology',
+        phone: '+91-9876503456',
+        email: 'dr.vikram@aivanahospital.com',
+        isActive: true,
+    },
+];

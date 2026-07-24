@@ -1,0 +1,138 @@
+{
+  "ophthalmology": [
+    {
+      "input": "Provisional Diagnosis: Senile Immature Cataract, Right Eye\nAdmission Decision: Planned",
+      "expectedOutput": {
+        "challengesConsidered": [
+          "could this be managed as OPD?",
+          "could this be a pre-existing condition?",
+          "is the stated diagnosis supported by documented findings?"
+        ],
+        "anchors": [
+          "Ophthalmic evaluation documenting visual acuity",
+          "Biometry report with IOL power calculation",
+          "A-Scan / B-Scan ultrasound report"
+        ],
+        "discriminators": [
+          {
+            "challenge": "could this be managed as OPD?",
+            "evidence": "Documentation of co-morbidities requiring inpatient monitoring during surgery",
+            "reason": "Cataract surgery is typically a daycare procedure unless specific risks necessitate inpatient stay."
+          },
+          {
+            "challenge": "could this be a pre-existing condition?",
+            "evidence": "Duration of visual symptoms noted in the initial consultation",
+            "reason": "Needed to verify waiting period applicability for cataracts."
+          },
+          {
+            "challenge": "is the stated diagnosis supported by documented findings?",
+            "evidence": "Slit lamp examination grading the cataract severity",
+            "reason": "Required to confirm medical necessity for surgical intervention."
+          }
+        ]
+      }
+    }
+  ],
+  "maternity": [
+    {
+      "input": "Provisional Diagnosis: Maternity (Repeat LSCS)\nAdmission Decision: Planned",
+      "expectedOutput": {
+        "challengesConsidered": [
+          "could this be managed as OPD?",
+          "could this be a pre-existing condition?",
+          "is the stated diagnosis supported by documented findings?"
+        ],
+        "anchors": [
+          "Previous LSCS discharge summary or operative notes",
+          "Latest obstetric ultrasound report confirming presentation and placental position",
+          "Antenatal Care (ANC) card or records"
+        ],
+        "discriminators": [
+          {
+            "challenge": "could this be managed as OPD?",
+            "evidence": "Fetal heart rate monitoring and maternal vitals on admission",
+            "reason": "LSCS inherently requires inpatient admission; vitals confirm baseline status for surgery."
+          },
+          {
+            "challenge": "could this be a pre-existing condition?",
+            "evidence": "First trimester ultrasound or dating scan",
+            "reason": "Establishes gestational age to verify 9-month maternity waiting periods."
+          },
+          {
+            "challenge": "is the stated diagnosis supported by documented findings?",
+            "evidence": "Documentation of trial of labor or explicit indication for repeat LSCS (e.g., thin scar, patient refusal)",
+            "reason": "Verifies the clinical necessity of surgical delivery over a vaginal birth after cesarean (VBAC)."
+          }
+        ]
+      }
+    }
+  ],
+  "gynecology": [
+    {
+      "input": "Provisional Diagnosis: Uterine Fibroids (Intramural)\nAdmission Decision: Planned",
+      "expectedOutput": {
+        "challengesConsidered": [
+          "could this be managed as OPD?",
+          "could this be a pre-existing condition?",
+          "is the stated diagnosis supported by documented findings?"
+        ],
+        "anchors": [
+          "Pelvic ultrasound or MRI confirming fibroid size and location",
+          "Documentation of failed medical management",
+          "Hemoglobin / Complete Blood Count (CBC) report"
+        ],
+        "discriminators": [
+          {
+            "challenge": "could this be managed as OPD?",
+            "evidence": "Surgical plan indicating major intervention (e.g., laparoscopic myomectomy or hysterectomy)",
+            "reason": "Major gynecological surgeries require inpatient recovery and monitoring."
+          },
+          {
+            "challenge": "could this be a pre-existing condition?",
+            "evidence": "History of symptom onset (menorrhagia, dysmenorrhea) in OPD notes",
+            "reason": "Fibroids are often slow-growing; symptom timeline is needed for waiting period checks."
+          },
+          {
+            "challenge": "is the stated diagnosis supported by documented findings?",
+            "evidence": "Ultrasound report explicitly describing the intramural location and dimensions of the fibroid",
+            "reason": "Validates the specific diagnosis and necessity of the planned surgical approach."
+          }
+        ]
+      }
+    }
+  ],
+  "orthopedics": [
+    {
+      "input": "Provisional Diagnosis: Primary Osteoarthritis Right Knee\nAdmission Decision: Planned",
+      "expectedOutput": {
+        "challengesConsidered": [
+          "could this be managed as OPD?",
+          "could this be a pre-existing condition?",
+          "is the stated diagnosis supported by documented findings?"
+        ],
+        "anchors": [
+          "Weight-bearing X-rays of the affected knee",
+          "Clinical documentation of failed conservative treatment (physiotherapy, analgesics)",
+          "Implant requirement details"
+        ],
+        "discriminators": [
+          {
+            "challenge": "could this be managed as OPD?",
+            "evidence": "Planned Total Knee Replacement (TKR) procedure notes",
+            "reason": "TKR is a major orthopedic surgery requiring inpatient postoperative care and mobilization."
+          },
+          {
+            "challenge": "could this be a pre-existing condition?",
+            "evidence": "Duration of joint pain and stiffness documented by the treating physician",
+            "reason": "Osteoarthritis is chronic and frequently subject to specific policy waiting periods."
+          },
+          {
+            "challenge": "is the stated diagnosis supported by documented findings?",
+            "evidence": "Radiology report confirming Grade III or IV Kellgren-Lawrence osteoarthritis",
+            "reason": "Objective radiological evidence is strictly required to authorize joint replacement surgery."
+          }
+        ]
+      }
+    }
+  ]
+}
