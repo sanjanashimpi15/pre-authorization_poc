@@ -157,13 +157,31 @@ export function searchICD10(query: string): ICD10Entry[] {
     const seen = new Set<string>();
     const results: ICD10Entry[] = [];
     
+    // 1. First get results from full WHO database lookupICD
+    try {
+        const lookupResults = lookupICD(query);
+        lookupResults.forEach(c => {
+            if (!seen.has(c.code.toLowerCase())) {
+                seen.add(c.code.toLowerCase());
+                results.push({
+                    code: c.code,
+                    description: c.description,
+                    commonName: c.description
+                });
+            }
+        });
+    } catch (e) {
+        console.error("searchICD10 WHO lookup failed:", e);
+    }
+    
+    // 2. Also search the local CONDITIONS list to merge (ensuring typical LOS/PM-JAY parameters are linked)
     for (const c of CONDITIONS) {
         const hit = c.icd_code.toLowerCase().includes(q)
             || c.condition_name.toLowerCase().includes(q)
             || c.specialty.toLowerCase().includes(q);
             
-        if (hit && !seen.has(c.icd_code)) {
-            seen.add(c.icd_code);
+        if (hit && !seen.has(c.icd_code.toLowerCase())) {
+            seen.add(c.icd_code.toLowerCase());
             results.push({
                 code: c.icd_code,
                 description: c.condition_name,
@@ -171,8 +189,8 @@ export function searchICD10(query: string): ICD10Entry[] {
                 specialty: c.specialty
             });
         }
-        if (results.length >= 12) break;
+        if (results.length >= 20) break;
     }
-    return results;
+    return results.slice(0, 15);
 }
 

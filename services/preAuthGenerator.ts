@@ -269,7 +269,7 @@ function formatDate(date: Date): string {
 // 9-PAGE PRE-AUTH HTML GENERATOR (Full Part C Template without score or gaps)
 // -----------------------------------------------------------------------------
 
-export function generateFull9PagePreAuthHtml(record: any): string {
+export function generateFull9PagePreAuthHtml(record: any, options?: { editable?: boolean }): string {
     const patient = record.patient ?? {};
     const ins = record.insurance ?? {};
     const clinical = record.clinical ?? {};
@@ -280,15 +280,54 @@ export function generateFull9PagePreAuthHtml(record: any): string {
     const selectedDx = clinical.diagnoses?.[clinical.selectedDiagnosisIndex ?? 0];
 
     const escapeHtml = (v: any): string => {
-        if (v === null || v === undefined || String(v).trim() === '') return '—';
+        if (v === null || v === undefined || String(v).trim() === '') return '';
         return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
 
-    const renderValue = (val: string | number | null | undefined, emptyLabel: string = '—') => {
-        if (val === null || val === undefined || String(val).trim() === '') {
+    const renderValue = (
+        val: string | number | null | undefined,
+        emptyLabel: string = '—',
+        fieldPath?: string,
+        inputType: 'text' | 'number' | 'date' | 'textarea' = 'text'
+    ) => {
+        const hasValue = !(val === null || val === undefined || String(val).trim() === '' || String(val).trim() === '—');
+        const displayVal = hasValue ? String(val) : '';
+
+        if (options?.editable && fieldPath) {
+            if (inputType === 'textarea') {
+                return `<textarea data-field="${fieldPath}" class="pdf-editable-input textarea" style="width: 100%; border: 1px dashed #0f9488; padding: 2px; border-radius: 4px; font-family: inherit; font-size: inherit; resize: vertical; background: #ffffff; color: #1a1a1a; box-sizing: border-box; min-height: 45px; margin: 1px 0;">${escapeHtml(displayVal)}</textarea>`;
+            } else {
+                return `<input type="${inputType}" data-field="${fieldPath}" value="${escapeHtml(displayVal)}" class="pdf-editable-input" style="width: 100%; border: 1px dashed #0f9488; padding: 2px; border-radius: 4px; font-family: inherit; font-size: inherit; background: #ffffff; color: #1a1a1a; box-sizing: border-box; margin: 1px 0;" />`;
+            }
+        }
+
+        const displayLabel = (val === null || val === undefined || String(val).trim() === '') ? emptyLabel : String(val);
+        if (displayLabel === '' || displayLabel === '—') {
             return `<span class="field-value empty">${emptyLabel}</span>`;
         }
-        return `<span class="field-value">${escapeHtml(val)}</span>`;
+        return `<span class="field-value">${escapeHtml(displayLabel)}</span>`;
+    };
+
+    const renderCheckbox = (checked: boolean, fieldPath: string, label: string) => {
+        if (options?.editable) {
+            return `<label class="checkbox" style="cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px;">
+                <input type="checkbox" data-field="${fieldPath}" ${checked ? 'checked' : ''} style="accent-color: #0f9488; width: 12px; height: 12px; margin: 0 4px 0 0;" />
+                ${label}
+            </label>`;
+        }
+        return `<span class="checkbox"><span class="box">${checked ? 'X' : ''}</span> ${label}</span>`;
+    };
+
+    const renderRadio = (currentValue: any, fieldPath: string, optValue: string, label: string) => {
+        if (options?.editable) {
+            const checked = String(currentValue).toLowerCase() === optValue.toLowerCase();
+            return `<label style="cursor: pointer; user-select: none; margin-right: 12px; display: inline-flex; align-items: center;">
+                <input type="radio" name="${fieldPath}" data-field="${fieldPath}" value="${optValue}" ${checked ? 'checked' : ''} style="accent-color: #0f9488; width: 12px; height: 12px; margin: 0 4px 0 0;" />
+                ${label}
+            </label>`;
+        }
+        const checked = String(currentValue).toLowerCase() === optValue.toLowerCase();
+        return `<span class="checkbox"><span class="box">${checked ? 'X' : ''}</span> ${label}</span>`;
     };
 
     const costTotals = calculateTotals({
@@ -328,31 +367,31 @@ export function generateFull9PagePreAuthHtml(record: any): string {
     const surgicalBlock = (activeLine === 'surgical' || clinical.surgeryDetails) ? `
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;i. Surgery / Procedure Name</td>
-      <td>${renderValue(clinical.surgeryDetails?.nameOfSurgery)}</td>
+      <td>${renderValue(clinical.surgeryDetails?.nameOfSurgery, '—', 'clinical.surgeryDetails.nameOfSurgery')}</td>
     </tr>
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;ii. Surgery ICD-10-PCS Code</td>
-      <td>${renderValue(clinical.surgeryDetails?.surgeryIcdCode)}</td>
+      <td>${renderValue(clinical.surgeryDetails?.surgeryIcdCode, '—', 'clinical.surgeryDetails.surgeryIcdCode')}</td>
     </tr>` : '';
 
     const injuryBlock = clinical.injuryDetails?.isInjury ? `
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;i. Injury / Accident Date &amp; Cause</td>
-      <td>${renderValue(clinical.injuryDetails?.dateOfInjury)} &bull; ${renderValue(clinical.injuryDetails?.causeOfInjury)}</td>
+      <td>${renderValue(clinical.injuryDetails?.dateOfInjury, '—', 'clinical.injuryDetails.dateOfInjury', 'date')} &bull; ${renderValue(clinical.injuryDetails?.causeOfInjury, '—', 'clinical.injuryDetails.causeOfInjury')}</td>
     </tr>
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;ii. Medico-Legal Case (MLC)</td>
-      <td><span class="field-value">${clinical.injuryDetails?.isMLC ? 'Yes' : 'No'}</span></td>
+      <td>${renderRadio(clinical.injuryDetails?.isMLC ? 'Yes' : 'No', 'clinical.injuryDetails.isMLC', 'Yes', 'Yes')} &nbsp;&nbsp; ${renderRadio(clinical.injuryDetails?.isMLC ? 'Yes' : 'No', 'clinical.injuryDetails.isMLC', 'No', 'No')}</td>
     </tr>` : '';
 
     const maternityBlock = clinical.maternityDetails?.isMaternity ? `
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;i. Maternity Expected Delivery Date</td>
-      <td>${renderValue(clinical.maternityDetails?.edd)}</td>
+      <td>${renderValue(clinical.maternityDetails?.edd, '—', 'clinical.maternityDetails.edd', 'date')}</td>
     </tr>
     <tr>
       <td class="field-label">&nbsp;&nbsp;&nbsp;ii. Gravida / Para Status</td>
-      <td><span class="field-value">G: ${clinical.maternityDetails?.gravida ?? '—'} / P: ${clinical.maternityDetails?.para ?? '—'}</span></td>
+      <td>G: ${renderValue(clinical.maternityDetails?.gravida, '—', 'clinical.maternityDetails.gravida', 'number')} / P: ${renderValue(clinical.maternityDetails?.para, '—', 'clinical.maternityDetails.para', 'number')}</td>
     </tr>` : '';
 
     const pmh = admission.pastMedicalHistory ?? {};
@@ -447,6 +486,11 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <body>
 
 <!-- ================= PAGE 1: TITLE + SECTION A + SECTION B ================= -->
+${options?.editable ? `
+<div class="edit-warning-banner" style="background-color: #f0fdfa; border: 1px solid #ccfbf1; color: #0d9488; padding: 10px 14px; border-radius: 8px; margin: 10px 0 15px 0; font-family: sans-serif; font-size: 11px; font-weight: 500; line-height: 1.4;">
+    <strong>Interactive Preview Mode:</strong> Edits made below affect only the final downloaded PDF and do not recalculate the Claim Readiness score.
+</div>
+` : ''}
 <div class="doc-title">
   <h1>Request for Cashless Hospitalisation for Health Insurance</h1>
   <h2>Policy Part &ndash; C (Revised) &mdash; Pre-Authorization Summary</h2>
@@ -460,34 +504,34 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <div class="section">
   <div class="section-title">Details of the Third Party Administrator / Insurer / Hospital</div>
   <table class="field-table">
-    <tr><td class="field-label">a. Name of TPA / Insurance Company</td><td>${renderValue(ins.insurerName || ins.tpaName)}</td></tr>
-    <tr><td class="field-label">b. Toll Free Phone Number</td><td><span class="field-value empty">&mdash;</span></td></tr>
-    <tr><td class="field-label">c. Toll Free Fax</td><td><span class="field-value empty">&mdash;</span></td></tr>
-    <tr><td class="field-label">d. Name of Hospital</td><td>${renderValue(declHospital.authorizedSignatoryName ? `${declHospital.authorizedSignatoryName} Hospital` : 'Apex Hospital, Kamareddy')}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. Address</td><td>${renderValue(patient.city ? `${patient.city}, ${patient.state || ''}` : null)}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;ii. Rohini ID</td><td><span class="field-value empty">&mdash;</span></td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;iii. E-mail ID</td><td>${renderValue(patient.email)}</td></tr>
+    <tr><td class="field-label">a. Name of TPA / Insurance Company</td><td>${renderValue(ins.insurerName || ins.tpaName, '—', 'insurance.insurerName')}</td></tr>
+    <tr><td class="field-label">b. Toll Free Phone Number</td><td>${renderValue(ins.tollFreeNumber, '—', 'insurance.tollFreeNumber')}</td></tr>
+    <tr><td class="field-label">c. Toll Free Fax</td><td>${renderValue(ins.tollFreeFax, '—', 'insurance.tollFreeFax')}</td></tr>
+    <tr><td class="field-label">d. Name of Hospital</td><td>${renderValue(declHospital.authorizedSignatoryName ? `${declHospital.authorizedSignatoryName} Hospital` : 'Apex Hospital, Kamareddy', '—', 'declarations.hospital.authorizedSignatoryName')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. Address</td><td>${renderValue(patient.city ? `${patient.city}, ${patient.state || ''}` : null, '—', 'patient.city')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;ii. Rohini ID</td><td>${renderValue(declHospital.rohiniId, '—', 'declarations.hospital.rohiniId')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;iii. E-mail ID</td><td>${renderValue(patient.email, '—', 'patient.email')}</td></tr>
   </table>
 </div>
 
 <div class="section-subtitle">To Be Filled By Insured / Patient</div>
 <div class="section">
   <table class="field-table">
-    <tr><td class="field-label">A. Name of the Patient</td><td>${renderValue(patient.patientName)}</td></tr>
-    <tr><td class="field-label">B. Gender</td><td>${renderValue(patient.gender)}</td></tr>
-    <tr><td class="field-label">C. Age</td><td>${renderValue(patient.age ? `${patient.age} Years` : null)}</td></tr>
-    <tr><td class="field-label">D. Date of Birth</td><td>${renderValue(patient.dateOfBirth, 'Not confirmed')}</td></tr>
-    <tr><td class="field-label">E. Contact Number</td><td>${renderValue(patient.mobileNumber || patient.contactNumber)}</td></tr>
-    <tr><td class="field-label">F. Contact Number of Attending Relative</td><td><span class="field-value empty">&mdash;</span></td></tr>
-    <tr><td class="field-label">G. Insured Card ID Number</td><td>${renderValue(ins.tpaIdCardNumber || ins.policyNumber)}</td></tr>
-    <tr><td class="field-label">H. Policy Number / Name of Corporate</td><td>${renderValue(ins.policyNumber || ins.corporateName)}</td></tr>
-    <tr><td class="field-label">I. Employee ID</td><td>${renderValue(ins.employeeId, 'Not applicable')}</td></tr>
-    <tr><td class="field-label">J. Other Mediclaim / Health Insurance</td><td>${renderValue(ins.hasOtherHealthPolicy ? (ins.otherPolicyDetails || 'Yes') : null, 'Not disclosed')}</td></tr>
-    <tr><td class="field-label">K. Family Physician</td><td>${renderValue(patient.familyPhysicianName ? 'Yes' : null, 'Not disclosed')}</td></tr>
-    <tr><td class="field-label">L. Name of Family Physician</td><td>${renderValue(patient.familyPhysicianName)}</td></tr>
-    <tr><td class="field-label">M. Contact Number</td><td><span class="field-value empty">&mdash;</span></td></tr>
-    <tr><td class="field-label">N. Current Address of Insured Patient</td><td>${renderValue([patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(', '))}</td></tr>
-    <tr><td class="field-label">O. Occupation of Insured Patient</td><td>${renderValue(patient.occupation)}</td></tr>
+    <tr><td class="field-label">A. Name of the Patient</td><td>${renderValue(patient.patientName, '—', 'patient.patientName')}</td></tr>
+    <tr><td class="field-label">B. Gender</td><td>${renderRadio(patient.gender, 'patient.gender', 'Male', 'Male')} &nbsp;&nbsp; ${renderRadio(patient.gender, 'patient.gender', 'Female', 'Female')} &nbsp;&nbsp; ${renderRadio(patient.gender, 'patient.gender', 'Other', 'Other')}</td></tr>
+    <tr><td class="field-label">C. Age</td><td>${renderValue(patient.age, '—', 'patient.age', 'number')}</td></tr>
+    <tr><td class="field-label">D. Date of Birth</td><td>${renderValue(patient.dateOfBirth, '—', 'patient.dateOfBirth', 'date')}</td></tr>
+    <tr><td class="field-label">E. Contact Number</td><td>${renderValue(patient.mobileNumber || patient.contactNumber, '—', 'patient.mobileNumber')}</td></tr>
+    <tr><td class="field-label">F. Contact Number of Attending Relative</td><td>${renderValue(patient.attendingRelativeMobile, '—', 'patient.attendingRelativeMobile')}</td></tr>
+    <tr><td class="field-label">G. Insured Card ID Number</td><td>${renderValue(ins.tpaIdCardNumber || ins.policyNumber, '—', 'insurance.tpaIdCardNumber')}</td></tr>
+    <tr><td class="field-label">H. Policy Number / Name of Corporate</td><td>${renderValue(ins.policyNumber || ins.corporateName, '—', 'insurance.policyNumber')}</td></tr>
+    <tr><td class="field-label">I. Employee ID</td><td>${renderValue(ins.employeeId, 'Not applicable', 'insurance.employeeId')}</td></tr>
+    <tr><td class="field-label">J. Other Mediclaim / Health Insurance</td><td>${renderValue(ins.otherPolicyDetails, 'Not disclosed', 'insurance.otherPolicyDetails')}</td></tr>
+    <tr><td class="field-label">K. Family Physician</td><td>${renderValue(patient.familyPhysicianName ? 'Yes' : null, 'Not disclosed', 'patient.familyPhysicianName')}</td></tr>
+    <tr><td class="field-label">L. Name of Family Physician</td><td>${renderValue(patient.familyPhysicianName, '—', 'patient.familyPhysicianName')}</td></tr>
+    <tr><td class="field-label">M. Contact Number</td><td>${renderValue(patient.familyPhysicianContact, '—', 'patient.familyPhysicianContact')}</td></tr>
+    <tr><td class="field-label">N. Current Address of Insured Patient</td><td>${renderValue(patient.address, '—', 'patient.address')}</td></tr>
+    <tr><td class="field-label">O. Occupation of Insured Patient</td><td>${renderValue(patient.occupation, '—', 'patient.occupation')}</td></tr>
   </table>
 </div>
 <div class="page-num">Page 1 of 9</div>
@@ -497,15 +541,15 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <div class="section-subtitle">To Be Filled By Treating Doctor / Hospital</div>
 <div class="section">
   <table class="field-table">
-    <tr><td class="field-label">A. Name of the Treating Doctor</td><td>${renderValue(declDoctor.doctorName)}</td></tr>
-    <tr><td class="field-label">B. Contact Number</td><td>${renderValue(declDoctor.registrationCouncil ? `Reg: ${declDoctor.doctorRegistrationNumber}` : null)}</td></tr>
-    <tr><td class="field-label">C. Nature of Illness / Presenting Complaint</td><td>${renderValue(clinical.natureOfIllness ? `${clinical.natureOfIllness} — ${clinical.chiefComplaints || ''}` : clinical.chiefComplaints)}</td></tr>
-    <tr><td class="field-label">D. Relevant Critical Findings</td><td>${renderValue(clinical.relevantClinicalFindings)}</td></tr>
-    <tr><td class="field-label">E. Duration of Present Ailment</td><td>${renderValue(clinical.durationOfPresentAilment)}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. Date of First Consultation</td><td>${renderValue(clinical.firstConsultationDate)}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;ii. Past History of Present Ailment</td><td>${renderValue(clinical.historyOfPresentIllness || clinical.treatmentTakenSoFar)}</td></tr>
-    <tr><td class="field-label">F. Provisional Diagnosis</td><td>${renderValue(selectedDx?.diagnosis || clinical.chiefComplaints)}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. ICD-10 Code</td><td>${renderValue(selectedDx?.icd10Code ? `${selectedDx.icd10Code} — ${selectedDx.icd10Description || ''}` : null, 'Pending confirmation')}</td></tr>
+    <tr><td class="field-label">A. Name of the Treating Doctor</td><td>${renderValue(declDoctor.doctorName, '—', 'declarations.doctor.doctorName')}</td></tr>
+    <tr><td class="field-label">B. Contact Number</td><td>${renderValue(declDoctor.doctorRegistrationNumber, '—', 'declarations.doctor.doctorRegistrationNumber')}</td></tr>
+    <tr><td class="field-label">C. Nature of Illness / Presenting Complaint</td><td>${renderValue(clinical.chiefComplaints, '—', 'clinical.chiefComplaints', 'textarea')}</td></tr>
+    <tr><td class="field-label">D. Relevant Critical Findings</td><td>${renderValue(clinical.relevantClinicalFindings, '—', 'clinical.relevantClinicalFindings', 'textarea')}</td></tr>
+    <tr><td class="field-label">E. Duration of Present Ailment</td><td>${renderValue(clinical.durationOfPresentAilment, '—', 'clinical.durationOfPresentAilment')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. Date of First Consultation</td><td>${renderValue(clinical.firstConsultationDate, '—', 'clinical.firstConsultationDate', 'date')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;ii. Past History of Present Ailment</td><td>${renderValue(clinical.historyOfPresentIllness, '—', 'clinical.historyOfPresentIllness', 'textarea')}</td></tr>
+    <tr><td class="field-label">F. Provisional Diagnosis</td><td>${renderValue(selectedDx?.diagnosis || clinical.chiefComplaints, '—', 'clinical.diagnoses.0.diagnosis')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. ICD-10 Code</td><td>${renderValue(selectedDx?.icd10Code, 'Pending confirmation', 'clinical.diagnoses.0.icd10Code')}</td></tr>
     ${surgicalBlock}
     ${injuryBlock}
     ${maternityBlock}
@@ -513,15 +557,15 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 
   <div style="margin-top:6px; font-size:10px;"><strong>G. Proposed Line of Treatment</strong></div>
   <ul class="treatment-list">
-    <li><span class="checkbox"><span class="box">${activeLine === 'medical' ? 'X' : ''}</span> Medical Management</span></li>
-    <li><span class="checkbox"><span class="box">${activeLine === 'surgical' ? 'X' : ''}</span> Surgical Management</span></li>
-    <li><span class="checkbox"><span class="box">${activeLine === 'icu' ? 'X' : ''}</span> Intensive Care</span></li>
-    <li><span class="checkbox"><span class="box">${activeLine === 'investigation' ? 'X' : ''}</span> Investigation</span></li>
-    <li><span class="checkbox"><span class="box">${activeLine === 'nonAllopathic' ? 'X' : ''}</span> Non-allopathic Treatment</span></li>
+    <li>${renderCheckbox(clinical.proposedLineOfTreatment?.medical, 'clinical.proposedLineOfTreatment.medical', 'Medical Management')}</li>
+    <li>${renderCheckbox(clinical.proposedLineOfTreatment?.surgical, 'clinical.proposedLineOfTreatment.surgical', 'Surgical Management')}</li>
+    <li>${renderCheckbox(clinical.proposedLineOfTreatment?.intensiveCare, 'clinical.proposedLineOfTreatment.intensiveCare', 'Intensive Care')}</li>
+    <li>${renderCheckbox(clinical.proposedLineOfTreatment?.investigation, 'clinical.proposedLineOfTreatment.investigation', 'Investigation')}</li>
+    <li>${renderCheckbox(clinical.proposedLineOfTreatment?.nonAllopathic, 'clinical.proposedLineOfTreatment.nonAllopathic', 'Non-allopathic Treatment')}</li>
   </ul>
 
   <table class="field-table" style="margin-top:8px;">
-    <tr><td class="field-label">H. Investigation / Medical Management Details</td><td>${renderValue(clinical.additionalClinicalNotes || clinical.reasonForHospitalisation)}</td></tr>
+    <tr><td class="field-label">H. Investigation / Medical Management Details</td><td>${renderValue(clinical.additionalClinicalNotes || clinical.reasonForHospitalisation, '—', 'clinical.additionalClinicalNotes', 'textarea')}</td></tr>
     <tr><td class="field-label">&nbsp;&nbsp;&nbsp;i. Route of Drug Administration</td><td><span class="field-value">Oral / IV fluids as needed</span></td></tr>
   </table>
 </div>
@@ -534,14 +578,14 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <div class="section">
   <div class="two-col">
     <table class="field-table">
-      <tr><td class="field-label">A. Date of Admission</td><td>${renderValue(admission.dateOfAdmission)}</td></tr>
-      <tr><td class="field-label">B. Time of Admission</td><td>${renderValue(admission.timeOfAdmission)}</td></tr>
-      <tr><td class="field-label">C. Emergency / Planned</td><td>${renderValue(admission.admissionType)}</td></tr>
-      <tr><td class="field-label">E. Expected Length of Stay</td><td>${renderValue(admission.expectedLengthOfStay ? `${admission.expectedLengthOfStay} Days` : null)}</td></tr>
+      <tr><td class="field-label">A. Date of Admission</td><td>${renderValue(admission.dateOfAdmission, '—', 'admission.dateOfAdmission', 'date')}</td></tr>
+      <tr><td class="field-label">B. Time of Admission</td><td>${renderValue(admission.timeOfAdmission, '—', 'admission.timeOfAdmission')}</td></tr>
+      <tr><td class="field-label">C. Emergency / Planned</td><td>${renderRadio(admission.admissionType, 'admission.admissionType', 'Emergency', 'Emergency')} &nbsp;&nbsp; ${renderRadio(admission.admissionType, 'admission.admissionType', 'Planned', 'Planned')}</td></tr>
+      <tr><td class="field-label">E. Expected Length of Stay</td><td>${renderValue(admission.expectedLengthOfStay, '—', 'admission.expectedLengthOfStay', 'number')} Days</td></tr>
     </table>
     <table class="field-table">
-      <tr><td class="field-label">G. Room Type</td><td>${renderValue(admission.roomCategory)}</td></tr>
-      <tr><td class="field-label">F. Days in ICU</td><td>${renderValue(admission.expectedDaysInICU ? `${admission.expectedDaysInICU} Days` : null, 'Not applicable')}</td></tr>
+      <tr><td class="field-label">G. Room Type</td><td>${renderValue(admission.roomCategory, '—', 'admission.roomCategory')}</td></tr>
+      <tr><td class="field-label">F. Days in ICU</td><td>${admission.expectedDaysInICU ? renderValue(admission.expectedDaysInICU, '—', 'admission.expectedDaysInICU', 'number') + ' Days' : '<span class="field-value pending">Not applicable</span>'}</td></tr>
     </table>
   </div>
 
@@ -549,14 +593,14 @@ export function generateFull9PagePreAuthHtml(record: any): string {
   <div class="field-value ${pastIllnesses ? '' : 'empty'}" style="border:none; margin-top:2px;">${pastIllnesses || 'None reported'}</div>
 
   <table class="cost-table" style="margin-top:10px;">
-    <tr><td>H. Room Rent / day (incl. nursing &amp; service charges)</td><td class="amount">${cost.roomRentPerDay ? `₹ ${Number(cost.roomRentPerDay).toLocaleString('en-IN')}` : '<span class="field-value empty">&mdash;</span>'}</td></tr>
-    <tr><td>I. Investigation / Diagnostic Cost</td><td class="amount">${cost.investigationsEstimate ? `₹ ${Number(cost.investigationsEstimate).toLocaleString('en-IN')}` : '<span class="field-value empty">&mdash;</span>'}</td></tr>
-    <tr><td>J. ICU Charges</td><td class="amount">${cost.icuChargesPerDay ? `₹ ${Number(cost.icuChargesPerDay).toLocaleString('en-IN')}/day` : '<span class="field-value pending">Not applicable</span>'}</td></tr>
-    <tr><td>K. OT Charges</td><td class="amount">${cost.otCharges ? `₹ ${Number(cost.otCharges).toLocaleString('en-IN')}` : '<span class="field-value pending">Not applicable</span>'}</td></tr>
-    <tr><td>L. Professional Fees (Surgeon / Anaesthetist / Consultation)</td><td class="amount">${(cost.surgeonFee || cost.consultantFee) ? `₹ ${((cost.surgeonFee ?? 0) + (cost.consultantFee ?? 0) + (cost.anesthetistFee ?? 0)).toLocaleString('en-IN')}` : '<span class="field-value empty">&mdash;</span>'}</td></tr>
-    <tr><td>M. Medicines / Consumables / Implants</td><td class="amount">${(cost.medicinesEstimate || cost.consumablesEstimate) ? `₹ ${((cost.medicinesEstimate ?? 0) + (cost.consumablesEstimate ?? 0)).toLocaleString('en-IN')}` : '<span class="field-value empty">&mdash;</span>'}</td></tr>
-    <tr><td>N. Other Hospital Expenses</td><td class="amount">${cost.miscCharges ? `₹ ${Number(cost.miscCharges).toLocaleString('en-IN')}` : '<span class="field-value empty">&mdash;</span>'}</td></tr>
-    <tr><td>O. All-inclusive Package Charges</td><td class="amount">${cost.packageAmount ? `₹ ${Number(cost.packageAmount).toLocaleString('en-IN')}` : '<span class="field-value pending">Not applicable</span>'}</td></tr>
+    <tr><td>H. Room Rent / day (incl. nursing &amp; service charges)</td><td class="amount">${cost.roomRentPerDay ? `₹ ` + renderValue(cost.roomRentPerDay, '—', 'costEstimate.roomRentPerDay', 'number') : '<span class="field-value empty">&mdash;</span>'}</td></tr>
+    <tr><td>I. Investigation / Diagnostic Cost</td><td class="amount">${cost.investigationsEstimate ? `₹ ` + renderValue(cost.investigationsEstimate, '—', 'costEstimate.investigationsEstimate', 'number') : '<span class="field-value empty">&mdash;</span>'}</td></tr>
+    <tr><td>J. ICU Charges</td><td class="amount">${cost.icuChargesPerDay ? `₹ ` + renderValue(cost.icuChargesPerDay, '—', 'costEstimate.icuChargesPerDay', 'number') + '/day' : '<span class="field-value pending">Not applicable</span>'}</td></tr>
+    <tr><td>K. OT Charges</td><td class="amount">${cost.otCharges ? `₹ ` + renderValue(cost.otCharges, '—', 'costEstimate.otCharges', 'number') : '<span class="field-value pending">Not applicable</span>'}</td></tr>
+    <tr><td>L. Professional Fees (Surgeon / Anaesthetist / Consultation)</td><td class="amount">${(cost.surgeonFee || cost.consultantFee) ? `₹ ` + renderValue((cost.surgeonFee ?? 0) + (cost.consultantFee ?? 0) + (cost.anesthetistFee ?? 0), '—', 'costEstimate.surgeonFee', 'number') : '<span class="field-value empty">&mdash;</span>'}</td></tr>
+    <tr><td>M. Medicines / Consumables / Implants</td><td class="amount">${(cost.medicinesEstimate || cost.consumablesEstimate) ? `₹ ` + renderValue((cost.medicinesEstimate ?? 0) + (cost.consumablesEstimate ?? 0), '—', 'costEstimate.medicinesEstimate', 'number') : '<span class="field-value empty">&mdash;</span>'}</td></tr>
+    <tr><td>N. Other Hospital Expenses</td><td class="amount">${cost.miscCharges ? `₹ ` + renderValue(cost.miscCharges, '—', 'costEstimate.miscCharges', 'number') : '<span class="field-value empty">&mdash;</span>'}</td></tr>
+    <tr><td>O. All-inclusive Package Charges</td><td class="amount">${cost.packageAmount ? `₹ ` + renderValue(cost.packageAmount, '—', 'costEstimate.packageAmount', 'number') : '<span class="field-value pending">Not applicable</span>'}</td></tr>
     <tr class="total"><td>P. Sum Total Expected Cost of Hospitalization</td><td class="amount">₹ ${costTotals.totalEstimatedCost.toLocaleString('en-IN')}</td></tr>
   </table>
 </div>
@@ -569,9 +613,9 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <div class="section" style="font-size:9.5px;">
   We confirm having read, understood and agreed to the declarations of this form.
   <table class="field-table" style="margin-top:8px;">
-    <tr><td class="field-label">a. Name of the Treating Doctor</td><td>${renderValue(declDoctor.doctorName)}</td></tr>
-    <tr><td class="field-label">b. Qualification</td><td>${renderValue(declDoctor.doctorQualification)}</td></tr>
-    <tr><td class="field-label">c. Registration Number with State Code</td><td>${renderValue(declDoctor.doctorRegistrationNumber)}</td></tr>
+    <tr><td class="field-label">a. Name of the Treating Doctor</td><td>${renderValue(declDoctor.doctorName, '—', 'declarations.doctor.doctorName')}</td></tr>
+    <tr><td class="field-label">b. Qualification</td><td>${renderValue(declDoctor.doctorQualification, '—', 'declarations.doctor.doctorQualification')}</td></tr>
+    <tr><td class="field-label">c. Registration Number with State Code</td><td>${renderValue(declDoctor.doctorRegistrationNumber, '—', 'declarations.doctor.doctorRegistrationNumber')}</td></tr>
   </table>
 
   <div class="sign-row">
@@ -604,9 +648,9 @@ export function generateFull9PagePreAuthHtml(record: any): string {
   </ul>
 
   <table class="field-table" style="margin-top:6px;">
-    <tr><td class="field-label">a) Patient's / Insured's Name</td><td>${renderValue(patient.patientName)}</td></tr>
-    <tr><td class="field-label">b) Contact Number</td><td>${renderValue(patient.mobileNumber || patient.contactNumber)}</td></tr>
-    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;e-mail ID (optional)</td><td>${renderValue(patient.email)}</td></tr>
+    <tr><td class="field-label">a) Patient's / Insured's Name</td><td>${renderValue(patient.patientName, '—', 'patient.patientName')}</td></tr>
+    <tr><td class="field-label">b) Contact Number</td><td>${renderValue(patient.mobileNumber || patient.contactNumber, '—', 'patient.mobileNumber')}</td></tr>
+    <tr><td class="field-label">&nbsp;&nbsp;&nbsp;e-mail ID (optional)</td><td>${renderValue(patient.email, '—', 'patient.email')}</td></tr>
   </table>
   <div class="sign-row">
     <div class="sign-box"><div class="box-outline" style="height:30px;"></div><div class="label">d) Patient's / Insured's Signature</div></div>
@@ -662,7 +706,7 @@ export function generateFull9PagePreAuthHtml(record: any): string {
     <tr><td class="k">Proposer Name</td><td>${renderValue(ins.proposerName)}</td></tr>
     <tr><td class="k">Patient's Member ID / TPA/Insurer ID</td><td>${renderValue(ins.tpaIdCardNumber || ins.policyNumber)}</td></tr>
     <tr><td class="k">Relation with Proposer</td><td>${renderValue(ins.relationshipWithProposer)}</td></tr>
-    <tr><td class="k">Rohini ID</td><td><span class="field-value empty">&mdash;</span></td></tr>
+    <tr><td class="k">Rohini ID</td><td>${renderValue(declHospital.rohiniId, '—', 'declarations.hospital.rohiniId')}</td></tr>
   </table>
 
   <table class="info-table" style="margin-top:8px;">
@@ -691,12 +735,12 @@ export function generateFull9PagePreAuthHtml(record: any): string {
 <div class="section">
   <div class="section-title">Hospital Agreed Tariff &mdash; Non-Package Case</div>
   <table class="field-table">
-    <tr><td class="field-label">i. Room Rent / day</td><td>${renderValue(cost.roomRentPerDay ? `₹ ${cost.roomRentPerDay}` : null)}</td></tr>
-    <tr><td class="field-label">ii. ICU Rent / day</td><td>${renderValue(cost.icuChargesPerDay ? `₹ ${cost.icuChargesPerDay}` : null, 'Not applicable')}</td></tr>
-    <tr><td class="field-label">iii. Nursing Charges / day</td><td>${renderValue(cost.nursingChargesPerDay ? `₹ ${cost.nursingChargesPerDay}` : null)}</td></tr>
-    <tr><td class="field-label">iv. Consultant Visit Charges / day</td><td>${renderValue(cost.consultantFee ? `₹ ${cost.consultantFee}` : null)}</td></tr>
-    <tr><td class="field-label">v. Surgeon's Fee / OT / Anaesthetist</td><td>${renderValue(cost.surgeonFee || cost.otCharges ? `₹ ${(cost.surgeonFee ?? 0) + (cost.otCharges ?? 0) + (cost.anesthetistFee ?? 0)}` : null, 'Not applicable')}</td></tr>
-    <tr><td class="field-label">vi. Others</td><td>${renderValue(cost.miscCharges ? `₹ ${cost.miscCharges}` : null)}</td></tr>
+    <tr><td class="field-label">i. Room Rent / day</td><td>${renderValue(cost.roomRentPerDay, '—', 'costEstimate.roomRentPerDay', 'number')}</td></tr>
+    <tr><td class="field-label">ii. ICU Rent / day</td><td>${cost.icuChargesPerDay ? renderValue(cost.icuChargesPerDay, '—', 'costEstimate.icuChargesPerDay', 'number') : '<span class="field-value pending">Not applicable</span>'}</td></tr>
+    <tr><td class="field-label">iii. Nursing Charges / day</td><td>${renderValue(cost.nursingChargesPerDay, '—', 'costEstimate.nursingChargesPerDay', 'number')}</td></tr>
+    <tr><td class="field-label">iv. Consultant Visit Charges / day</td><td>${renderValue(cost.consultantFee, '—', 'costEstimate.consultantFee', 'number')}</td></tr>
+    <tr><td class="field-label">v. Surgeon's Fee / OT / Anaesthetist</td><td>${cost.surgeonFee || cost.otCharges ? renderValue((cost.surgeonFee ?? 0) + (cost.otCharges ?? 0) + (cost.anesthetistFee ?? 0), '—', 'costEstimate.surgeonFee', 'number') : '<span class="field-value pending">Not applicable</span>'}</td></tr>
+    <tr><td class="field-label">vi. Others</td><td>${renderValue(cost.miscCharges, '—', 'costEstimate.miscCharges', 'number')}</td></tr>
   </table>
 
   <div class="section-title" style="margin-top:12px;">Authorization Summary</div>

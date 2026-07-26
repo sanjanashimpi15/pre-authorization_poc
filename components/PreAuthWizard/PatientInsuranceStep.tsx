@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PatientRecord, InsurancePolicyDetails, EntryPath, WizardDocument } from '../PreAuthWizard/types';
+import { PatientRecord, InsurancePolicyDetails, EntryPath, WizardDocument, ClinicalDetails, PreAuthRecord } from '../PreAuthWizard/types';
 import { INSURER_LIST, INDIAN_STATES, TPA_NAMES } from '../../config/tpaRegistry';
 import { calculateAge, isPolicyActive, isPolicyExpiringSoon, todayISO } from '../../utils/formatters';
 import { extractFromDocument, ExtractedPatientData } from '../../services/documentExtractionService';
@@ -22,17 +22,47 @@ interface PatientInsuranceStepProps {
         patient: Partial<PatientRecord>,
         insurance: Partial<InsurancePolicyDetails>,
         docs: WizardDocument[],
-        clinical?: Partial<ClinicalDetails>
+        clinical?: Partial<ClinicalDetails>,
+        rawExtractedData?: any
     ) => void;
     onExtractingChange?: (isExtracting: boolean) => void;
     onOcrDoneChange?: (isDone: boolean) => void;
+    record?: Partial<PreAuthRecord>;
+    onFieldManual?: (path: string) => void;
+    onSaveClinicalNote?: (text: string) => Promise<void>;
 }
 
 export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
     patient, insurance, clinical = {}, onPatientChange, onInsuranceChange, onClinicalChange, onNext, uploadedDocuments = [], onDocumentsChange,
-    onExtractionComplete, onExtractingChange, onOcrDoneChange
+    onExtractionComplete, onExtractingChange, onOcrDoneChange, record, onFieldManual, onSaveClinicalNote
 }) => {
     const [entryPath, setEntryPath] = useState<EntryPath | null>(insurance.policyNumber ? 'manual' : null);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+    const [isSavingNote, setIsSavingNote] = useState(false);
+
+    const renderAbsentWarning = (path: string) => {
+        if (focusedField === path && record?.provenanceMap?.[path]?.source === 'absent') {
+            return (
+                <p className="text-[10px] text-amber-600 font-semibold mt-1 animate-fade-in">
+                    ⚠️ This information was not found in the uploaded documents. Please enter it manually.
+                </p>
+            );
+        }
+        return null;
+    };
+
+    const handleSaveNoteClick = async () => {
+        if (!onSaveClinicalNote) return;
+        setIsSavingNote(true);
+        try {
+            await onSaveClinicalNote(clinical.additionalClinicalNotes || '');
+        } catch (err) {
+            console.error("Failed to save clinical note:", err);
+        } finally {
+            setIsSavingNote(false);
+        }
+    };
+
     const [isExtractingState, setIsExtractingState] = useState(false);
     const setIsExtracting = (loading: boolean) => {
         setIsExtractingState(loading);
@@ -488,15 +518,18 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     mergedNotes = ocrNote;
                 }
             }
+            const isHighConfidence = normalizedConf >= 0.70;
             const updatedClinical: Partial<ClinicalDetails> = {
                 ...clinical,
-                additionalClinicalNotes: mergedNotes
+                additionalClinicalNotes: mergedNotes,
+                diagnoses: isHighConfidence ? (extracted.diagnoses || []) : [],
+                suggestedDiagnoses: !isHighConfidence ? (extracted.diagnoses || []).map((d: any) => d.originalDiagnosis || d.diagnosis) : []
             };
 
             // Single bundled update — see onExtractionComplete's doc comment for why this
             // replaced three separate onPatientChange/onInsuranceChange/onDocumentsChange calls.
             if (onExtractionComplete) {
-                onExtractionComplete(updatedPatient, updatedInsurance, updatedDocuments, updatedClinical);
+                onExtractionComplete(updatedPatient, updatedInsurance, updatedDocuments, updatedClinical, extracted);
             } else {
                 onPatientChange(updatedPatient);
                 onInsuranceChange(updatedInsurance);
@@ -579,23 +612,43 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                             value={clinical.additionalClinicalNotes || ''}
                             onChange={e => onClinicalChange && onClinicalChange({ ...clinical, additionalClinicalNotes: e.target.value })}
                             placeholder="Add the patient's clinical notes, presenting complaints, history, diagnosis, investigations, treatment plan, etc."
-                            rows={8}
-                            className="w-full form-input pr-12 text-xs font-mono leading-relaxed resize-y overflow-y-auto"
+                            rows={7}
+                            className="w-full form-input pr-20 text-xs font-mono leading-relaxed resize-y overflow-y-auto"
                         />
-                        <button
-                            type="button"
-                            onClick={toggleListening}
-                            title={isListening ? "Stop voice dictation" : "Dictate clinical notes with microphone"}
-                            className={`absolute right-3 bottom-3 p-2 rounded-full border transition-all duration-150 flex items-center justify-center ${
-                                isListening
-                                    ? 'bg-rose-50 border-rose-300 text-rose-600 animate-pulse shadow-sm'
-                                    : 'bg-opd-input-bg border-opd-border text-opd-text-secondary hover:text-opd-primary hover:border-opd-primary/30'
-                            }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                            </svg>
-                        </button>
+                        <div className="absolute right-3 bottom-3 flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={handleSaveNoteClick}
+                                disabled={isSavingNote || !(clinical.additionalClinicalNotes || '').trim()}
+                                title="Save clinical note to run extraction & comparison"
+                                className="bg-white border-opd-border text-opd-primary hover:bg-primary-tint/10 p-2 rounded-full border transition-all duration-150 flex items-center justify-center shadow-sm disabled:opacity-50"
+                            >
+                                {isSavingNote ? (
+                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={toggleListening}
+                                title={isListening ? "Stop voice dictation" : "Dictate clinical notes with microphone"}
+                                className={`p-2 rounded-full border transition-all duration-150 flex items-center justify-center ${
+                                    isListening
+                                        ? 'bg-rose-50 border-rose-300 text-rose-600 animate-pulse shadow-sm'
+                                        : 'bg-opd-input-bg border-opd-border text-opd-text-secondary hover:text-opd-primary hover:border-opd-primary/30'
+                                }`}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     {isListening && (
                         <div className="text-[10px] text-rose-600 font-bold flex items-center gap-1.5 font-mono">
@@ -978,28 +1031,56 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Full Name *</label>
-                        <input value={patient.patientName ?? ''} onChange={e => onPatientChange({ ...patient, patientName: e.target.value })}
+                        <input value={patient.patientName ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, patientName: e.target.value });
+                                onFieldManual?.('patient.patientName');
+                            }}
+                            onFocus={() => setFocusedField('patient.patientName')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="As on insurance card" />
+                        {renderAbsentWarning('patient.patientName')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Date of Birth</label>
-                        <input type="date" value={patient.dateOfBirth ?? ''} onChange={e => handleDOBChange(e.target.value)}
+                        <input type="date" value={patient.dateOfBirth ?? ''}
+                            onChange={e => {
+                                handleDOBChange(e.target.value);
+                                onFieldManual?.('patient.dateOfBirth');
+                            }}
+                            onFocus={() => setFocusedField('patient.dateOfBirth')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('patient.dateOfBirth')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Age *</label>
-                        <input type="number" value={patient.age ?? ''} onChange={e => onPatientChange({ ...patient, age: +e.target.value })}
+                        <input type="number" value={patient.age ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, age: +e.target.value });
+                                onFieldManual?.('patient.age');
+                            }}
+                            onFocus={() => setFocusedField('patient.age')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="Years" />
+                        {renderAbsentWarning('patient.age')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Gender *</label>
-                        <select value={patient.gender ?? ''} onChange={e => onPatientChange({ ...patient, gender: e.target.value as any })}
+                        <select value={patient.gender ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, gender: e.target.value as any });
+                                onFieldManual?.('patient.gender');
+                            }}
+                            onFocus={() => setFocusedField('patient.gender')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input">
                             <option value="">Select</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                             <option value="Other">Other</option>
                         </select>
+                        {renderAbsentWarning('patient.gender')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Marital Status</label>
@@ -1011,8 +1092,15 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Mobile Number *</label>
-                        <input type="tel" value={patient.mobileNumber ?? ''} onChange={e => onPatientChange({ ...patient, mobileNumber: e.target.value })}
+                        <input type="tel" value={patient.mobileNumber ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, mobileNumber: e.target.value });
+                                onFieldManual?.('patient.mobileNumber');
+                            }}
+                            onFocus={() => setFocusedField('patient.mobileNumber')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="+91 XXXXX XXXXX" />
+                        {renderAbsentWarning('patient.mobileNumber')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Email</label>
@@ -1021,16 +1109,30 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">City *</label>
-                        <input value={patient.city ?? ''} onChange={e => onPatientChange({ ...patient, city: e.target.value })}
+                        <input value={patient.city ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, city: e.target.value });
+                                onFieldManual?.('patient.city');
+                            }}
+                            onFocus={() => setFocusedField('patient.city')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('patient.city')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">State *</label>
-                        <select value={patient.state ?? ''} onChange={e => onPatientChange({ ...patient, state: e.target.value })}
+                        <select value={patient.state ?? ''}
+                            onChange={e => {
+                                onPatientChange({ ...patient, state: e.target.value });
+                                onFieldManual?.('patient.state');
+                            }}
+                            onFocus={() => setFocusedField('patient.state')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input">
                             <option value="">Select State</option>
                             {INDIAN_STATES.map(s => <option key={s}>{s}</option>)}
                         </select>
+                        {renderAbsentWarning('patient.state')}
                     </div>
                     <div className="col-span-2">
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">UHID (Hospital ID)</label>
@@ -1047,26 +1149,55 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Insurance Company *</label>
                         <datalist id="insurer-list">{INSURER_LIST.map(i => <option key={i} value={i} />)}</datalist>
-                        <input list="insurer-list" value={insurance.insurerName ?? ''} onChange={e => onInsuranceChange({ ...insurance, insurerName: e.target.value })}
+                        <input list="insurer-list" value={insurance.insurerName ?? ''}
+                            onChange={e => {
+                                onInsuranceChange({ ...insurance, insurerName: e.target.value });
+                                onFieldManual?.('insurance.insurerName');
+                            }}
+                            onFocus={() => setFocusedField('insurance.insurerName')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="Start typing insurer..." />
+                        {renderAbsentWarning('insurance.insurerName')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">TPA Name</label>
-                        <select value={insurance.tpaName ?? ''} onChange={e => onInsuranceChange({ ...insurance, tpaName: e.target.value })}
+                        <select value={insurance.tpaName ?? ''}
+                            onChange={e => {
+                                onInsuranceChange({ ...insurance, tpaName: e.target.value });
+                                onFieldManual?.('insurance.tpaName');
+                            }}
+                            onFocus={() => setFocusedField('insurance.tpaName')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input">
                             <option value="">Select TPA</option>
                             {TPA_NAMES.map(t => <option key={t}>{t}</option>)}
                         </select>
+                        {renderAbsentWarning('insurance.tpaName')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Policy Number *</label>
-                        <input value={insurance.policyNumber ?? ''} onChange={e => onInsuranceChange({ ...insurance, policyNumber: e.target.value })}
+                        <input value={insurance.policyNumber ?? ''}
+                            onChange={e => {
+                                onInsuranceChange({ ...insurance, policyNumber: e.target.value });
+                                onFieldManual?.('insurance.policyNumber');
+                            }}
+                            onFocus={() => setFocusedField('insurance.policyNumber')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('insurance.policyNumber')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">TPA ID Card Number</label>
-                        <input value={insurance.tpaIdCardNumber ?? ''} onChange={e => onInsuranceChange({ ...insurance, tpaIdCardNumber: e.target.value })}
+                        <input value={insurance.tpaIdCardNumber ?? ''}
+                            onChange={e => {
+                                onInsuranceChange({ ...insurance, tpaIdCardNumber: e.target.value });
+                                onFieldManual?.('insurance.tpaIdCardNumber');
+                                onFieldManual?.('insurance.memberId');
+                            }}
+                            onFocus={() => setFocusedField('insurance.tpaIdCardNumber')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('insurance.tpaIdCardNumber')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Policy Type</label>
@@ -1077,8 +1208,15 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Sum Insured (₹) *</label>
-                        <input type="number" value={insurance.sumInsured ?? ''} onChange={e => onInsuranceChange({ ...insurance, sumInsured: +e.target.value })}
+                        <input type="number" value={insurance.sumInsured ?? ''}
+                            onChange={e => {
+                                onInsuranceChange({ ...insurance, sumInsured: +e.target.value });
+                                onFieldManual?.('insurance.sumInsured');
+                            }}
+                            onFocus={() => setFocusedField('insurance.sumInsured')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="e.g. 500000" />
+                        {renderAbsentWarning('insurance.sumInsured')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Policy Start Date</label>
@@ -1087,8 +1225,15 @@ export const PatientInsuranceStep: React.FC<PatientInsuranceStepProps> = ({
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Policy End Date</label>
-                        <input type="date" value={insurance.policyEndDate ?? ''} onChange={e => handlePolicyEndDate(e.target.value)}
+                        <input type="date" value={insurance.policyEndDate ?? ''}
+                            onChange={e => {
+                                handlePolicyEndDate(e.target.value);
+                                onFieldManual?.('insurance.policyEndDate');
+                            }}
+                            onFocus={() => setFocusedField('insurance.policyEndDate')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('insurance.policyEndDate')}
                         {policyDateWarning && <p className="text-opd-error text-[11px] font-semibold mt-1.5">{policyDateWarning}</p>}
                     </div>
                     <div>

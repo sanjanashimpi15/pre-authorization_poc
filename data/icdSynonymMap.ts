@@ -100,6 +100,7 @@ export const ICD_SYNONYM_MAP: IcdSynonym[] = [
   { term: "viral fever", code: "A99", note: "Unspecified viral illness" },
   { term: "bukhar", code: "R50.9", note: "Fever, unspecified" },
   { term: "fever", code: "R50.9", note: "Fever, unspecified" },
+  { term: "pyrexia", code: "R50.9", note: "Fever, unspecified (Pyrexia)" },
   { term: "sepsis", code: "A41.9", note: "Sepsis, unspecified organism" },
   { term: "cellulitis", code: "L03.9", note: "Cellulitis, unspecified [WHO ICD-10]" },
   { term: "anemia", code: "D64.9", note: "Anemia, unspecified" },

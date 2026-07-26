@@ -248,6 +248,60 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
         }
     }, []);
 
+    const handleFieldManual = useCallback((path: string) => {
+        const prov = recordRef.current.provenanceMap || {};
+        if (prov[path]?.source !== 'manual') {
+            const updatedProv = {
+                ...prov,
+                [path]: {
+                    source: 'manual' as const,
+                    confidence: 1.0,
+                    value: ''
+                }
+            };
+            updateRecord({ provenanceMap: updatedProv });
+        }
+    }, [updateRecord]);
+
+    const handleSaveClinicalNote = useCallback(async (notesText: string) => {
+        // Construct the mock text File
+        const mockFile = new File([notesText], "clinical_note.txt", { type: "text/plain" });
+        
+        // Run extraction using extractFromDocument
+        const { extractFromDocument } = await import('../../services/documentExtractionService');
+        const extracted = await extractFromDocument(mockFile);
+        
+        // Add to rawExtractions under 'clinical_note'
+        const rawExtractions = recordRef.current.rawExtractions || [];
+        const index = rawExtractions.findIndex(e => e.id === 'clinical_note');
+        const newEntry = {
+            id: 'clinical_note',
+            fileName: 'clinical_note.txt',
+            extractedData: extracted,
+            confidence: 0.90
+        };
+        
+        const updatedExtractions = index !== -1
+            ? rawExtractions.map((e, idx) => idx === index ? newEntry : e)
+            : [...rawExtractions, newEntry];
+            
+        // Apply Central Mapping
+        let updatedRecordState = {
+            ...recordRef.current,
+            clinical: {
+                ...recordRef.current.clinical,
+                additionalClinicalNotes: notesText,
+                diagnoses: (recordRef.current.clinical?.diagnoses?.length || 0) === 0 ? (extracted.diagnoses || []) : (recordRef.current.clinical?.diagnoses || [])
+            },
+            rawExtractions: updatedExtractions
+        };
+        
+        const { CentralMappingService } = await import('../../services/centralMappingService');
+        updatedRecordState = CentralMappingService.applyMapping(updatedRecordState) as PreAuthRecord;
+        
+        await updateRecord(updatedRecordState);
+    }, [updateRecord]);
+
     const handleNext = async () => {
         setSaving(true);
         await updateRecord({});
@@ -415,9 +469,37 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
                                     onNext={handleNext}
                                     uploadedDocuments={record.uploadedDocuments ?? []}
                                     onDocumentsChange={docs => updateRecord({ uploadedDocuments: docs })}
-                                    onExtractionComplete={(p, ins, docs, clin) => updateRecord({ patient: p, insurance: ins, uploadedDocuments: docs, ...(clin ? { clinical: clin } : {}) })}
+                                    onExtractionComplete={async (p, ins, docs, clin, rawExtracted) => {
+                                        const rawExtractions = record.rawExtractions || [];
+                                        const documentId = docs[docs.length - 1]?.id || Math.random().toString(36).substring(7);
+                                        const fileName = docs[docs.length - 1]?.fileName || 'uploaded_doc';
+                                        
+                                        const newEntry = {
+                                            id: documentId,
+                                            fileName,
+                                            extractedData: rawExtracted || { patient: p, insurance: ins, clinical: clin },
+                                            confidence: rawExtracted?.confidence ? (rawExtracted.confidence > 1 ? rawExtracted.confidence / 100 : rawExtracted.confidence) : 0.90
+                                        };
+                                        
+                                        let updatedRecordState = {
+                                            ...record,
+                                            patient: { ...record.patient, ...p },
+                                            insurance: { ...record.insurance, ...ins },
+                                            uploadedDocuments: docs,
+                                            clinical: { ...record.clinical, ...clin },
+                                            rawExtractions: [...rawExtractions, newEntry]
+                                        };
+                                        
+                                        const { CentralMappingService } = await import('../../services/centralMappingService');
+                                        updatedRecordState = CentralMappingService.applyMapping(updatedRecordState) as PreAuthRecord;
+                                        
+                                        updateRecord(updatedRecordState);
+                                    }}
                                     onExtractingChange={setIsStep1Extracting}
                                     onOcrDoneChange={setIsStep1OcrDone}
+                                    record={record}
+                                    onFieldManual={handleFieldManual}
+                                    onSaveClinicalNote={handleSaveClinicalNote}
                                 />
                             )}
                             {step === 2 && (
@@ -432,6 +514,8 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
                                     patientData={record.patient ?? {}}
                                     insuranceData={record.insurance ?? {}}
                                     onNoteComparisonResult={setNoteComparisonItems}
+                                    record={record}
+                                    onFieldManual={handleFieldManual}
                                 />
                             )}
                             {step === 3 && (
@@ -445,6 +529,8 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
                                     onNext={handleNext}
                                     onBack={handleBack}
                                     complexity={record.complexity}
+                                    record={record}
+                                    onFieldManual={handleFieldManual}
                                 />
                             )}
                             {step === 4 && (

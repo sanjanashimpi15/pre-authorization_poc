@@ -7,6 +7,8 @@ import { queryMedGemma, taigaIcdSchema } from './llmClient';
 import { clinicalTextMatchSync } from '../utils/clinicalTextMatch';
 import { reportError } from './errorLogger';
 import { getFewShotExamplesForPrompt } from '../engine/continuousLearningLoop';
+import { getSarvamTextClient } from './apiKeys';
+import { MODEL_SARVAM_TEXT } from '../config/modelConfig';
 
 export interface IcdCandidate {
   code: string;
@@ -15,6 +17,7 @@ export interface IcdCandidate {
   matchMethod: 'synonym' | 'exact' | 'contains' | 'ai_fallback';
   confidence: 'high' | 'medium' | 'low';
   note?: string;
+  confidenceScore?: number;
 }
 
 /**
@@ -331,6 +334,14 @@ export function isIcdCodePlausible(code: string, diagnosisText: string): boolean
     return codeUpper.startsWith('O') || codeUpper.startsWith('Z');
   }
 
+  // Maternity context filter: O codes should only be plausible for maternity diagnoses
+  if (codeUpper.startsWith('O')) {
+    const isMaternityDiag = diagLower.includes('pregnancy') || diagLower.includes('lscs') || diagLower.includes('delivery') || diagLower.includes('gestation') || diagLower.includes('obstetric') || diagLower.includes('primi') || diagLower.includes('term') || diagLower.includes('caesarean') || diagLower.includes('cesarean') || diagLower.includes('puerperal') || diagLower.includes('postpartum') || diagLower.includes('labour') || diagLower.includes('labor') || diagLower.includes('childbirth');
+    if (!isMaternityDiag) {
+      return false;
+    }
+  }
+
   // Fibroid / Hysterectomy / Uterus / Menorrhagia
   if (diagLower.includes('fibroid') || diagLower.includes('uterus') || diagLower.includes('hysterectomy') || diagLower.includes('myomectomy') || diagLower.includes('leiomyoma') || diagLower.includes('menorrhagia') || diagLower.includes('bulky')) {
     return codeUpper.startsWith('D') || codeUpper.startsWith('N') || codeUpper.startsWith('Z');
@@ -552,4 +563,219 @@ Identify the closest valid WHO ICD-10 code.`;
   }
 
   return getManualFallback();
+}
+
+// ── In-Memory Resolution Cache & Normalization logic ──────────────────────────
+
+export const DIAGNOSIS_RESOLUTION_CACHE = new Map<string, {
+    primary: string;
+    associated: string[];
+    candidates: IcdCandidate[];
+}>();
+
+function getCacheKey(diagnosis: string): string {
+    return (diagnosis || '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+export function getCachedNormalization(diagnosis: string) {
+    const key = getCacheKey(diagnosis);
+    return DIAGNOSIS_RESOLUTION_CACHE.get(key);
+}
+
+const SPLIT_PROMPT = `You are a medical diagnosis normalization assistant.
+Given a compound diagnosis phrase (like "CKD with Anaemia", "Dengue with Pyrexia", "Type II DM with HTN"), split it into a primary disease term and associated symptoms/comorbidities terms.
+Return ONLY valid JSON (no markdown formatting, no \`\`\`json block) in this exact structure:
+{
+  "primary": "primary disease term here",
+  "associated": ["associated term 1", "associated term 2"]
+}
+If the diagnosis is simple and not compound (e.g. "Dengue Fever"), return the same string for primary and an empty list for associated.
+Only extract terms clearly present in the input. Do not invent diagnoses.`;
+
+function fallbackSplit(diagnosis: string): { primary: string; associated: string[] } {
+    const text = diagnosis.trim();
+    // Split on common connectors: "with", "and", "+", "associated with", "secondary to"
+    const regex = /\s+(?:with|and|\+|\&|associated with|secondary to)\s+/i;
+    const parts = text.split(regex);
+    if (parts.length > 1) {
+        return {
+            primary: parts[0].trim(),
+            associated: parts.slice(1).map(p => p.trim())
+        };
+    }
+    return {
+        primary: text,
+        associated: []
+    };
+}
+
+export async function normalizeDiagnosisWithAI(diagnosis: string): Promise<{ primary: string; associated: string[] }> {
+    try {
+        const textClient = getSarvamTextClient();
+        const model = textClient.getGenerativeModel({ model: MODEL_SARVAM_TEXT });
+        
+        const payload = [
+            { text: SPLIT_PROMPT },
+            { text: `Input Diagnosis: "${diagnosis}"` }
+        ];
+        
+        const res = await model.generateContent(payload, { forceJson: true, maxTokens: 512 });
+        let jsonStr = res.response.text().trim();
+        if (jsonStr.startsWith('```json')) {
+            jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
+        } else if (jsonStr.startsWith('```')) {
+            jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
+        }
+        const parsed = JSON.parse(jsonStr);
+        return {
+            primary: parsed.primary ? parsed.primary.trim() : diagnosis,
+            associated: Array.isArray(parsed.associated) ? parsed.associated.map((a: string) => a.trim()) : []
+        };
+    } catch (e) {
+        console.error('Error normalizing diagnosis with AI:', e);
+        return fallbackSplit(diagnosis);
+    }
+}
+
+function getConfidenceScore(c: IcdCandidate): number {
+    if (c.matchMethod === 'synonym') return 0.95;
+    if (c.matchMethod === 'exact') return 0.90;
+    if (c.matchMethod === 'contains') return 0.65;
+    // ai_fallback
+    if (c.confidence === 'high') return 0.85;
+    if (c.confidence === 'medium') return 0.75;
+    return 0.55;
+}
+
+export async function resolveDiagnosisToIcd(diagnosisText: string, context?: string): Promise<IcdCandidate[]> {
+    const cacheKey = getCacheKey(diagnosisText);
+    if (DIAGNOSIS_RESOLUTION_CACHE.has(cacheKey)) {
+        console.log(`[icdService] Cache HIT for diagnosis: "${diagnosisText}"`);
+        return DIAGNOSIS_RESOLUTION_CACHE.get(cacheKey)!.candidates;
+    }
+
+    if (!diagnosisText || diagnosisText.trim().length === 0) {
+        return [];
+    }
+
+    let candidates: IcdCandidate[] = [];
+
+    // 1. Try exact/synonym match first (only if not a compound phrase)
+    const looksCompound = /\s+(?:with|and|\+|\&|associated with|secondary to)\s+/i.test(diagnosisText);
+    if (!looksCompound) {
+        const exactMatches = lookupICD(diagnosisText);
+        if (exactMatches.length > 0) {
+            const plausible = exactMatches.filter(c => isIcdCodePlausible(c.code, diagnosisText));
+            if (plausible.length > 0) {
+                candidates.push(...plausible);
+            }
+        }
+    }
+
+    let normalizedPrimary = diagnosisText;
+    let associated: string[] = [];
+
+    // 2. If exact fails, try splitting/normalizing using AI (Sarvam completion)
+    if (candidates.length === 0) {
+        console.log(`[icdService] Exact match failed for "${diagnosisText}". Running AI normalization...`);
+        const normalized = await normalizeDiagnosisWithAI(diagnosisText);
+        normalizedPrimary = normalized.primary;
+        associated = normalized.associated;
+        console.log(`[icdService] Normalized primary term: "${normalizedPrimary}"`);
+
+        // 3. Try lookup on the normalized primary term
+        const primaryMatches = lookupICD(normalizedPrimary);
+        if (primaryMatches.length > 0) {
+            const plausible = primaryMatches.filter(c => isIcdCodePlausible(c.code, normalizedPrimary));
+            if (plausible.length > 0) {
+                candidates.push(...plausible.map(c => ({
+                    ...c,
+                    note: c.note ? `${c.note} (Mapped from primary term: ${normalizedPrimary})` : `Mapped from primary term: ${normalizedPrimary}`
+                })));
+            }
+        }
+
+        // 4. Try lookup on associated terms if any
+        for (const assoc of associated) {
+            const assocMatches = lookupICD(assoc);
+            const plausibleAssoc = assocMatches.filter(c => isIcdCodePlausible(c.code, assoc));
+            if (plausibleAssoc.length > 0) {
+                candidates.push(...plausibleAssoc.map(c => ({
+                    ...c,
+                    note: c.note ? `${c.note} (Associated term: ${assoc})` : `Associated term: ${assoc}`
+                })));
+            }
+        }
+    }
+
+    // 5. If everything else fails, fall back to AI MedGemma suggestion automatically
+    if (candidates.length === 0) {
+        console.log(`[icdService] Primary and associated terms lookup failed. Falling back to AI MedGemma...`);
+        const aiMatches = await assignICDViaModel(diagnosisText, context);
+        if (aiMatches.length > 0) {
+            candidates.push(...aiMatches);
+        }
+    }
+
+    // Deduplicate
+    const uniqueCandidates: IcdCandidate[] = [];
+    const seenCodes = new Set<string>();
+    candidates.forEach(c => {
+        if (!seenCodes.has(c.code)) {
+            seenCodes.add(c.code);
+            // Attach score
+            const score = getConfidenceScore(c);
+            uniqueCandidates.push({
+                ...c,
+                confidenceScore: score
+            });
+        }
+    });
+
+    // Sort by confidenceScore descending
+    uniqueCandidates.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+
+    // Save to cache
+    DIAGNOSIS_RESOLUTION_CACHE.set(cacheKey, {
+        primary: normalizedPrimary,
+        associated: associated,
+        candidates: uniqueCandidates
+    });
+
+    return uniqueCandidates;
+}
+
+export async function resolveExtractedDiagnoses(diagnosesStrings: string[], textContext: string): Promise<any[]> {
+    const diagnosesEntries: any[] = [];
+    if (Array.isArray(diagnosesStrings)) {
+        for (const diagText of diagnosesStrings) {
+            if (!diagText) continue;
+            const candidates = await resolveDiagnosisToIcd(diagText, textContext);
+            const topCandidate = candidates[0];
+            const autoSelect = topCandidate && (topCandidate.confidenceScore || 0) >= 0.80;
+            
+            const code = autoSelect ? topCandidate.code : 'Pending ICD-10';
+            const desc = autoSelect ? topCandidate.description : 'Selection required';
+            const matchMethod = autoSelect ? topCandidate.matchMethod : 'manual';
+            
+            const normDetails = getCachedNormalization(diagText);
+            const primary = normDetails?.primary || diagText;
+            const associated = normDetails?.associated || [];
+            
+            diagnosesEntries.push({
+                diagnosis: diagText,
+                icd10Code: code,
+                icd10Description: desc,
+                icd10MatchMethod: matchMethod,
+                probability: 0.90,
+                reasoning: topCandidate?.note || '',
+                isSelected: diagnosesEntries.length === 0,
+                originalDiagnosis: diagText,
+                normalizedPrimaryDiagnosis: primary,
+                associatedDiagnoses: associated,
+                icd10Candidates: candidates
+            });
+        }
+    }
+    return diagnosesEntries;
 }

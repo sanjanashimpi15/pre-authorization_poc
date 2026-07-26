@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { PreAuthRecord } from '../PreAuthWizard/types';
 import { generateFull9PagePreAuthHtml } from '../../services/preAuthGenerator';
 
@@ -14,21 +14,142 @@ interface DocGenerateStepProps {
     externalTpaReport?: any;
 }
 
+// Deep nested path updating utility
+function setNestedPath(obj: any, path: string, value: any): any {
+    const clone = JSON.parse(JSON.stringify(obj));
+    const parts = path.split('.');
+    let current = clone;
+    for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        const nextPart = parts[i + 1];
+        const isNextNumber = /^\d+$/.test(nextPart);
+
+        if (current[part] === undefined || current[part] === null) {
+            current[part] = isNextNumber ? [] : {};
+        }
+        current = current[part];
+    }
+    const lastPart = parts[parts.length - 1];
+
+    // Cast value if it should be numeric and is not a string ID field
+    if (/^\d+(\.\d+)?$/.test(value) && lastPart !== 'mobileNumber' && lastPart !== 'policyNumber' && lastPart !== 'tpaIdCardNumber') {
+        current[lastPart] = Number(value);
+    } else if (value === 'true' || value === true) {
+        current[lastPart] = true;
+    } else if (value === 'false' || value === false) {
+        current[lastPart] = false;
+    } else {
+        current[lastPart] = value;
+    }
+
+    return clone;
+}
+
 export const DocumentsGenerateStep: React.FC<DocGenerateStepProps> = ({
     record,
     onBack
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [finalCaseData, setFinalCaseData] = useState<Partial<PreAuthRecord>>(() => record);
 
-    const htmlContent = useMemo(() => {
-        return generateFull9PagePreAuthHtml(record);
+    const initialHtmlContent = useMemo(() => {
+        return generateFull9PagePreAuthHtml(record, { editable: true });
     }, [record]);
+
+    const setupIframeListeners = useCallback(() => {
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!doc) return;
+
+        const inputs = doc.querySelectorAll('[data-field]');
+        inputs.forEach(input => {
+            const el = input as HTMLInputElement | HTMLTextAreaElement;
+
+            const handleEvent = (e: Event) => {
+                const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+                const path = target.getAttribute('data-field');
+                if (!path) return;
+
+                const value = target.type === 'checkbox' ? (target as HTMLInputElement).checked : target.value;
+
+                // Sync all duplicate fields inside the iframe's DOM in real-time
+                const duplicates = doc.querySelectorAll(`[data-field="${path}"]`);
+                duplicates.forEach(dup => {
+                    if (dup !== target) {
+                        if (dup.type === 'checkbox') {
+                            (dup as HTMLInputElement).checked = target.type === 'checkbox' ? (target as HTMLInputElement).checked : false;
+                        } else if (dup.type === 'radio') {
+                            const radio = dup as HTMLInputElement;
+                            radio.checked = radio.value === target.value;
+                        } else {
+                            (dup as HTMLInputElement | HTMLTextAreaElement).value = target.value;
+                        }
+                    }
+                });
+
+                setFinalCaseData(prev => {
+                    return setNestedPath(prev, path, value);
+                });
+            };
+
+            // Remove existing listeners if any (to prevent multiple listener bindings)
+            el.removeEventListener('input', handleEvent);
+            el.removeEventListener('change', handleEvent);
+
+            el.addEventListener('input', handleEvent);
+            el.addEventListener('change', handleEvent);
+        });
+    }, []);
+
+    // Set up listeners whenever the iframe loads or re-renders
+    useEffect(() => {
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+
+        const handleLoad = () => {
+            setupIframeListeners();
+        };
+
+        iframe.addEventListener('load', handleLoad);
+        setupIframeListeners();
+
+        return () => {
+            iframe.removeEventListener('load', handleLoad);
+        };
+    }, [setupIframeListeners]);
 
     const handleDownload = () => {
         const iframe = iframeRef.current;
         if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
+            const printHtml = generateFull9PagePreAuthHtml(finalCaseData, { editable: false });
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+            // Write printable read-only version to the iframe
+            doc.open();
+            doc.write(printHtml);
+            doc.close();
+
+            // Set up afterprint restore hook before calling print
+            iframe.contentWindow.onafterprint = () => {
+                // Restore the editable preview from the latest finalCaseData state
+                const editableHtml = generateFull9PagePreAuthHtml(finalCaseData, { editable: true });
+                doc.open();
+                doc.write(editableHtml);
+                doc.close();
+
+                // Re-bind listeners to the restored editable DOM
+                setupIframeListeners();
+            };
+
+            // Trigger printing after browser layout engine finishes writing the content
+            setTimeout(() => {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }
+            }, 100);
         }
     };
 
@@ -63,10 +184,18 @@ export const DocumentsGenerateStep: React.FC<DocGenerateStepProps> = ({
                         </span>
                     </div>
 
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-800 font-semibold leading-relaxed shadow-sm flex items-start gap-2">
+                        <span className="text-base leading-none">💡</span>
+                        <span>
+                            Edits made in the preview below affect only the final downloaded/printed PDF and do not propagate back to the database or recalculate the Claim Readiness score.
+                        </span>
+                    </div>
+
                     <div className="space-y-4">
                         <iframe
                             ref={iframeRef}
-                            srcDoc={htmlContent}
+                            srcDoc={initialHtmlContent}
+                            onLoad={setupIframeListeners}
                             title="Pre-Authorization 9-Page PDF Summary Preview"
                             className="w-full h-[750px] bg-white rounded-xl border border-opd-border shadow-inner"
                         />

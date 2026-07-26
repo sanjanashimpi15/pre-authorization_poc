@@ -204,6 +204,10 @@ export interface DiagnosisEntry {
     probability: number;
     reasoning: string;
     isSelected: boolean;
+    originalDiagnosis?: string;
+    normalizedPrimaryDiagnosis?: string;
+    associatedDiagnoses?: string[];
+    icd10Candidates?: any[];
 }
 
 export interface SeverityAssessment {
@@ -229,6 +233,7 @@ export interface ClinicalDetails {
     diagnoses: DiagnosisEntry[];
     selectedDiagnosisIndex: number;
     severity: SeverityAssessment;
+    suggestedDiagnoses?: string[];
     proposedLineOfTreatment: {
         medical: boolean;
         surgical: boolean;
@@ -484,6 +489,18 @@ export interface PreAuthRecord {
     complexityReason?: string;
     evidenceSuggestions?: EvidenceSuggestion[];
     acceptedSuggestions?: string[]; // Field names list (e.g. ['clinical.relevantClinicalFindings'])
+    rawExtractions?: {
+        id: string; // doc ID or 'clinical_note'
+        fileName?: string;
+        extractedData: any; // ExtractedPatientData
+        confidence: number; // 0-1
+    }[];
+    provenanceMap?: Record<string, {
+        source: 'ocr' | 'clinical_note' | 'manual' | 'absent' | 'not_reviewed';
+        confidence: number;
+        sourceDocName?: string;
+        value: any;
+    }>;
 }
 
 // ============================================

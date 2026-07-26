@@ -1,245 +1,436 @@
 /**
  * services/noteDocumentComparison.ts
  *
- * Deterministic (no AI call) field-by-field corroboration check: for each of the 5
- * fields, given the already-known DOCUMENT value, check whether the clinical note
- * corroborates it. Never independently parses "who is the patient" etc. from the
- * note in isolation — always compares against the known document value.
- *
- * Replaces an earlier AI-based version (local Ollama qwen2.5vl:3b, text-only) that
- * was tested three different ways tonight (multi-field array, one-shot-example
- * array, single-field calls) and consistently produced wrong results — including
- * claiming values were null when they were plainly present in the note text, and
- * getting missing_in_document/missing_in_note backwards. That's a real capability
- * limit of the 3B local model on this task, not a prompt-wording problem.
+ * Real deterministic note-to-document comparison rule engine with category weights.
+ * Classifies every comparable structured field and calculates category scores and an overall score.
  */
 
-import { normalizeInsurerName } from './documentExtractionService';
+import { PreAuthRecord } from '../components/PreAuthWizard/types';
+import { getNestedProperty } from './centralMappingService';
+import { getCachedNormalization } from './icdService';
 
 export interface NoteComparisonItem {
     field: string;
-    status: 'match' | 'mismatch' | 'missing_in_document' | 'missing_in_note';
+    displayName: string;
+    status: 'match' | 'conflict' | 'doc_only' | 'note_only' | 'missing' | 'mismatch'; // mismatch is for backward compatibility
     note_value: string | null;
     document_value: string | null;
 }
 
-interface ComparisonDocumentData {
-    patient?: { patientName?: string | null; age?: number | null; gender?: string | null };
-    insurance?: { policyNumber?: string | null; insurerName?: string | null };
+export interface NoteComparisonReport {
+    items: NoteComparisonItem[];
+    categoryScores: {
+        patient_identity: number;
+        insurance: number;
+        diagnosis: number;
+        clinical_findings: number;
+        treatment: number;
+    };
+    overallScore: number;
 }
 
-function normalizeForMatch(s: string): string {
-    return s.toLowerCase().replace(/[.\-']/g, '').replace(/\s+/g, ' ').trim();
+// ─── NORMALIZATION HELPERS ───
+
+export function normalizeString(val: any): string {
+    if (val === null || val === undefined) return '';
+    return String(val)
+        .toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?'"]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
-function checkPatientName(noteText: string, documentValue: string | null | undefined): NoteComparisonItem {
-    const docValue = documentValue || null;
-    if (!docValue) {
-        return { field: 'patient_name', status: 'missing_in_document', note_value: null, document_value: null };
+export function normalizeAge(val: any): string {
+    if (val === null || val === undefined) return '';
+    const s = String(val).trim();
+    const match = s.match(/\d+/);
+    return match ? match[0] : s;
+}
+
+export function normalizeGender(val: any): string {
+    if (!val) return '';
+    const s = String(val).toLowerCase().trim();
+    if (s === 'm' || s.startsWith('male') || s === 'boy' || s === 'gentleman' || s === 'man') return 'male';
+    if (s === 'f' || s.startsWith('female') || s === 'girl' || s === 'lady' || s === 'woman') return 'female';
+    if (s.startsWith('oth')) return 'other';
+    return s;
+}
+
+export function normalizeDate(val: any): string {
+    if (!val) return '';
+    const s = String(val).trim();
+    if (!s) return '';
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
     }
-    const normName = normalizeForMatch(docValue);
-    const normText = normalizeForMatch(noteText);
-    let found = normText.includes(normName);
-    if (!found) {
-        // Token-overlap fallback for minor variation (e.g. "A Paramesh" vs "A. Paramesh")
-        const tokens = normName.split(' ').filter(t => t.length >= 2);
-        if (tokens.length > 0) {
-            const hits = tokens.filter(t => normText.includes(t)).length;
-            found = hits / tokens.length >= 0.5;
+    const match = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (match) {
+        const dd = match[1].padStart(2, '0');
+        const mm = match[2].padStart(2, '0');
+        const yyyy = match[3];
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    const match2 = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (match2) {
+        const yyyy = match2[1];
+        const mm = match2[2].padStart(2, '0');
+        const dd = match2[3].padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    return s.toLowerCase().trim();
+}
+
+export function normalizePolicyNumber(val: any): string {
+    if (!val) return '';
+    return String(val).replace(/\D/g, ''); // keep only digits
+}
+
+export function compareInsurer(val1: string, val2: string): boolean {
+    const n1 = normalizeString(val1);
+    const n2 = normalizeString(val2);
+    if (!n1 || !n2) return false;
+    if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) return true;
+    const stopWords = new Set(['and', 'allied', 'insurance', 'company', 'limited', 'co', 'ltd', 'general', 'health', 'corporation', 'of', 'india']);
+    const words1 = n1.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    const words2 = n2.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    for (const w of words1) {
+        if (words2.includes(w)) return true;
+    }
+    return false;
+}
+
+export function compareCityOrHospital(val1: string, val2: string): boolean {
+    const n1 = normalizeString(val1);
+    const n2 = normalizeString(val2);
+    if (!n1 || !n2) return false;
+    if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) return true;
+    const stopWords = new Set(['hospital', 'clinic', 'medical', 'centre', 'center', 'nursing', 'home', 'care', 'health']);
+    const words1 = n1.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    const words2 = n2.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    for (const w of words1) {
+        if (words2.includes(w)) return true;
+    }
+    return false;
+}
+
+function localFallbackSplit(diagnosis: string): { primary: string; associated: string[] } {
+    const text = diagnosis.trim();
+    const regex = /\s+(?:with|and|\+|\&|associated with|secondary to)\s+/i;
+    const parts = text.split(regex);
+    if (parts.length > 1) {
+        return {
+            primary: parts[0].trim(),
+            associated: parts.slice(1).map(p => p.trim())
+        };
+    }
+    return {
+        primary: text,
+        associated: []
+    };
+}
+
+export function compareDiagnosis(val1: string, val2: string): boolean {
+    if (!val1 || !val2) return false;
+    const c1 = getCachedNormalization(val1);
+    const c2 = getCachedNormalization(val2);
+    if (c1 && c2 && c1.candidates?.[0]?.code && c2.candidates?.[0]?.code) {
+        if (c1.candidates[0].code === c2.candidates[0].code) return true;
+    }
+    const p1 = c1 ? c1.primary : localFallbackSplit(val1).primary;
+    const p2 = c2 ? c2.primary : localFallbackSplit(val2).primary;
+    const n1 = normalizeString(p1);
+    const n2 = normalizeString(p2);
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+}
+
+// ─── FIELDS DEFINITIONS ───
+
+interface ComparisonFieldDef {
+    path: string;
+    displayName: string;
+    category: 'patient_identity' | 'insurance' | 'diagnosis' | 'clinical_findings' | 'treatment';
+    extractor: (d: any) => any;
+    normalizeFn?: (val: any) => string;
+    compareFn?: (val1: string, val2: string) => boolean;
+}
+
+const COMPARISON_FIELDS: ComparisonFieldDef[] = [
+    // Patient Identity
+    { path: 'patient.patientName', displayName: 'Patient Name', category: 'patient_identity', extractor: (d) => d.patient?.name },
+    { path: 'patient.age', displayName: 'Age', category: 'patient_identity', extractor: (d) => d.patient?.age, normalizeFn: normalizeAge },
+    { path: 'patient.gender', displayName: 'Gender', category: 'patient_identity', extractor: (d) => d.patient?.gender, normalizeFn: normalizeGender },
+    { path: 'patient.dateOfBirth', displayName: 'Date of Birth', category: 'patient_identity', extractor: (d) => d.patient?.dob, normalizeFn: normalizeDate },
+    { path: 'patient.mobileNumber', displayName: 'Mobile Number', category: 'patient_identity', extractor: (d) => d.patient?.phone, normalizeFn: normalizePolicyNumber },
+    { path: 'patient.address', displayName: 'Address', category: 'patient_identity', extractor: (d) => d.patient?.address },
+    { path: 'patient.city', displayName: 'City', category: 'patient_identity', extractor: (d) => d.patient?.city, compareFn: compareCityOrHospital },
+    { path: 'patient.state', displayName: 'State', category: 'patient_identity', extractor: (d) => d.patient?.state },
+
+    // Insurance
+    { path: 'insurance.insurerName', displayName: 'Insurer Name', category: 'insurance', extractor: (d) => d.insurance?.insurance_company, compareFn: compareInsurer },
+    { path: 'insurance.policyNumber', displayName: 'Policy Number', category: 'insurance', extractor: (d) => d.insurance?.policy_number, normalizeFn: normalizePolicyNumber },
+    { path: 'insurance.memberId', displayName: 'Member ID', category: 'insurance', extractor: (d) => d.insurance?.member_id, normalizeFn: normalizePolicyNumber },
+    { path: 'insurance.tpaName', displayName: 'TPA Name', category: 'insurance', extractor: (d) => d.insurance?.tpa_name, compareFn: compareInsurer },
+    { path: 'insurance.sumInsured', displayName: 'Sum Insured', category: 'insurance', extractor: (d) => d.insurance?.sum_insured, normalizeFn: normalizeAge },
+    { path: 'insurance.policyType', displayName: 'Policy Type', category: 'insurance', extractor: (d) => d.insurance?.policy_type },
+
+    // Diagnosis
+    {
+        path: 'clinical.diagnoses[0].diagnosis',
+        displayName: 'Provisional Diagnosis',
+        category: 'diagnosis',
+        extractor: (d) => {
+            const dx = d.diagnoses?.[0];
+            if (!dx) return null;
+            return typeof dx === 'object' ? (dx.originalDiagnosis || dx.diagnosis) : dx;
+        },
+        compareFn: compareDiagnosis
+    },
+
+    // Clinical Findings
+    { path: 'clinical.chiefComplaints', displayName: 'Chief Complaints', category: 'clinical_findings', extractor: (d) => d.clinical?.chief_complaints },
+    { path: 'clinical.durationOfPresentAilment', displayName: 'Duration of Present Ailment', category: 'clinical_findings', extractor: (d) => d.clinical?.duration_of_present_ailment },
+    { path: 'clinical.historyOfPresentIllness', displayName: 'History of Present Illness', category: 'clinical_findings', extractor: (d) => d.clinical?.history_of_present_illness },
+    { path: 'clinical.relevantClinicalFindings', displayName: 'Relevant Clinical Findings', category: 'clinical_findings', extractor: (d) => d.clinical?.relevant_clinical_findings },
+    { path: 'clinical.treatmentTakenSoFar', displayName: 'Prior OPD Treatment', category: 'clinical_findings', extractor: (d) => d.clinical?.treatment_taken_so_far },
+    { path: 'clinical.comorbidities', displayName: 'Co-morbidities', category: 'clinical_findings', extractor: (d) => d.clinical?.comorbidities },
+
+    // Treatment
+    { path: 'admission.hospitalName', displayName: 'Hospital Name', category: 'treatment', extractor: (d) => d.admission?.hospital_name, compareFn: compareCityOrHospital },
+    { path: 'admission.dateOfAdmission', displayName: 'Date of Admission', category: 'treatment', extractor: (d) => d.admission?.date_of_admission, normalizeFn: normalizeDate },
+    { path: 'admission.roomType', displayName: 'Ward / Room Type', category: 'treatment', extractor: (d) => d.admission?.room_type },
+    { path: 'declarations.doctor.doctorName', displayName: 'Treating Doctor Name', category: 'treatment', extractor: (d) => d.admission?.treating_doctor_name },
+    {
+        path: 'clinical.proposedLineOfTreatment.surgical',
+        displayName: 'Proposed Procedures',
+        category: 'treatment',
+        extractor: (d) => {
+            const val = d.clinical?.proposed_line_of_treatment?.surgical;
+            return val === true ? 'surgical' : val === false ? 'no surgical' : null;
         }
-    }
-    return found
-        ? { field: 'patient_name', status: 'match', note_value: docValue, document_value: docValue }
-        : { field: 'patient_name', status: 'missing_in_note', note_value: null, document_value: docValue };
-}
-
-function extractAgeFromNote(noteText: string): number | null {
-    const m = noteText.match(/(\d{1,3})\s*(?:years?|yrs?|yo|y\/o)\b/i) || noteText.match(/\bage\s*[:\-]?\s*(\d{1,3})\b/i);
-    return m ? parseInt(m[1], 10) : null;
-}
-
-function checkAge(noteText: string, documentValue: number | null | undefined): NoteComparisonItem {
-    const docValue = typeof documentValue === 'number' ? documentValue : null;
-    const noteAge = extractAgeFromNote(noteText);
-    if (docValue === null && noteAge === null) {
-        return { field: 'age', status: 'missing_in_document', note_value: null, document_value: null };
-    }
-    if (docValue === null) {
-        return { field: 'age', status: 'missing_in_document', note_value: String(noteAge), document_value: null };
-    }
-    if (noteAge === null) {
-        return { field: 'age', status: 'missing_in_note', note_value: null, document_value: String(docValue) };
-    }
-    return noteAge === docValue
-        ? { field: 'age', status: 'match', note_value: String(noteAge), document_value: String(docValue) }
-        : { field: 'age', status: 'mismatch', note_value: String(noteAge), document_value: String(docValue) };
-}
-
-function extractGenderFromNote(noteText: string): string | null {
-    if (/\bfemale\b/i.test(noteText) || /\bF\b/.test(noteText)) return 'Female';
-    if (/\bmale\b/i.test(noteText) || /\bM\b/.test(noteText)) return 'Male';
-    return null;
-}
-
-function checkGender(noteText: string, documentValue: string | null | undefined): NoteComparisonItem {
-    const docValue = documentValue || null;
-    const noteGender = extractGenderFromNote(noteText);
-    if (!docValue && !noteGender) {
-        return { field: 'gender', status: 'missing_in_document', note_value: null, document_value: null };
-    }
-    if (!docValue) {
-        return { field: 'gender', status: 'missing_in_document', note_value: noteGender, document_value: null };
-    }
-    if (!noteGender) {
-        return { field: 'gender', status: 'missing_in_note', note_value: null, document_value: docValue };
-    }
-    return noteGender.toLowerCase() === docValue.toLowerCase()
-        ? { field: 'gender', status: 'match', note_value: noteGender, document_value: docValue }
-        : { field: 'gender', status: 'mismatch', note_value: noteGender, document_value: docValue };
-}
-
-function checkPolicyNumber(noteText: string, documentValue: string | null | undefined): NoteComparisonItem {
-    const docValue = documentValue || null;
-    // Same length/format bounds as the extraction regex in documentExtractionService.ts's
-    // applyHeuristicFallbacks: /[A-Za-z0-9-]{5,30}/
-    const candidates = noteText.match(/[A-Za-z0-9-]{5,30}/g) || [];
-    const normalize = (s: string) => s.replace(/[\s-]/g, '').toUpperCase();
-
-    if (!docValue) {
-        return { field: 'policy_number', status: 'missing_in_document', note_value: null, document_value: null };
-    }
-    const docNorm = normalize(docValue);
-    const found = candidates.some(c => normalize(c) === docNorm);
-    return found
-        ? { field: 'policy_number', status: 'match', note_value: docValue, document_value: docValue }
-        : { field: 'policy_number', status: 'missing_in_note', note_value: null, document_value: docValue };
-}
-
-// Same alias keywords as normalizeInsurerName in documentExtractionService.ts — detects
-// presence in free text (normalizeInsurerName only normalizes an already-known string,
-// it doesn't search for aliases in a document).
-const INSURER_ALIASES: Array<[string, string]> = [
-    ['star', 'Star Health and Allied Insurance Co Ltd'],
-    ['reliance', 'Reliance General Insurance'],
-    ['chola', 'Cholamandalam MS General Insurance Co Ltd'],
-    ['royal sundaram', 'Royal Sundaram General Insurance Co Ltd'],
-    ['manipal', 'ManipalCigna Health Insurance Company Limited'],
-    ['cigna', 'ManipalCigna Health Insurance Company Limited'],
-    ['care', 'Care Health Insurance'],
-    ['religare', 'Care Health Insurance'],
-    ['hdfc', 'HDFC ERGO General Insurance Co Ltd'],
-    ['niva', 'Niva Bupa Health Insurance'],
-    ['max bupa', 'Niva Bupa Health Insurance'],
-    ['icici', 'ICICI Lombard General Insurance Co Ltd'],
-    ['sbi', 'SBI General Insurance'],
-    ['aditya', 'Aditya Birla Health Insurance Co Ltd'],
-    ['tata', 'Tata AIG General Insurance Co Ltd'],
-    ['bajaj', 'Bajaj Allianz General Insurance Co Ltd'],
-    ['new india', 'New India Assurance Co Ltd'],
-    ['national', 'National Insurance Co Ltd'],
-    ['united', 'United India Insurance Co Ltd'],
-    ['oriental', 'Oriental Insurance Co Ltd'],
+    },
+    { path: 'clinical.medications', displayName: 'Medicines Plan', category: 'treatment', extractor: (d) => d.clinical?.medications },
+    { path: 'clinical.investigation_details', displayName: 'Investigations Planned', category: 'treatment', extractor: (d) => d.clinical?.investigation_details },
+    { path: 'clinical.reasonForHospitalisation', displayName: 'Planned Treatment Rationale', category: 'treatment', extractor: (d) => d.clinical?.reason_for_hospitalisation }
 ];
 
-function detectInsurerAliasInText(text: string): string | null {
-    const lower = text.toLowerCase();
-    for (const [keyword, canonical] of INSURER_ALIASES) {
-        if (lower.includes(keyword)) return canonical;
-    }
-    return null;
-}
-
-function checkInsurerName(noteText: string, documentValue: string | null | undefined): NoteComparisonItem {
-    const docValue = documentValue ? normalizeInsurerName(documentValue) : null;
-    const noteInsurer = detectInsurerAliasInText(noteText);
-    if (!docValue && !noteInsurer) {
-        return { field: 'insurer_name', status: 'missing_in_document', note_value: null, document_value: null };
-    }
-    if (!docValue) {
-        return { field: 'insurer_name', status: 'missing_in_document', note_value: noteInsurer, document_value: null };
-    }
-    if (!noteInsurer) {
-        return { field: 'insurer_name', status: 'missing_in_note', note_value: null, document_value: docValue };
-    }
-    return noteInsurer === docValue
-        ? { field: 'insurer_name', status: 'match', note_value: noteInsurer, document_value: docValue }
-        : { field: 'insurer_name', status: 'mismatch', note_value: noteInsurer, document_value: docValue };
-}
-
-export function compareNoteToDocument(noteText: string, documentData: ComparisonDocumentData): NoteComparisonItem[] {
-    return [
-        checkPatientName(noteText, documentData.patient?.patientName),
-        checkAge(noteText, documentData.patient?.age),
-        checkGender(noteText, documentData.patient?.gender),
-        checkPolicyNumber(noteText, documentData.insurance?.policyNumber),
-        checkInsurerName(noteText, documentData.insurance?.insurerName),
-    ];
-}
-
-export async function compareNoteToDocumentWithAI(noteText: string, documentData: ComparisonDocumentData): Promise<NoteComparisonItem[]> {
-    // 1. Run deterministic checks first
-    const items = compareNoteToDocument(noteText, documentData);
-
-    // 2. If AI_PROVIDER is sarvam, run semantic consistency checks via Sarvam completions
-    try {
-        const { AI_PROVIDER, MODEL_SARVAM_TEXT } = await import('../config/modelConfig');
-        if (AI_PROVIDER === 'sarvam') {
-            const { getSarvamTextClient } = await import('./apiKeys');
-            const client = getSarvamTextClient();
-            const model = client.getGenerativeModel({ model: MODEL_SARVAM_TEXT });
-
-            const prompt = `You are a clinical consistency auditor. Compare the treating doctor's clinical notes against the structured document evidence.
-Check for discrepancies in patient identity, diagnoses, symptoms, treatments, or cost parameters.
-
-Clinical Notes:
-"""
-${noteText}
-"""
-
-Extracted Document Evidence:
-- Patient Name: ${documentData.patient?.patientName || 'Not Extracted'}
-- Age: ${documentData.patient?.age || 'Not Extracted'}
-- Gender: ${documentData.patient?.gender || 'Not Extracted'}
-- Insurer Name: ${documentData.insurance?.insurerName || 'Not Extracted'}
-- Policy Number: ${documentData.insurance?.policyNumber || 'Not Extracted'}
-
-Identify any direct contradictions, conflicts, or mismatches. Return a JSON array of mismatch objects.
-Each object MUST strictly contain:
-- "field": the field name (e.g., "patient_name", "diagnosis", "treatment", "insurer_name", "policy_number")
-- "status": "mismatch"
-- "note_value": the value stated in the clinical note
-- "document_value": the value in the document evidence
-- "reason": clear description of the contradiction
-
-Format output ONLY as valid JSON array. Do not wrap in markdown block (do not use \`\`\`json). If there are no mismatches, return [].`;
-
-            const response = await model.generateContent([{ text: prompt }], { forceJson: true });
-            const text = response.response.text().trim();
-            const aiMismatches = JSON.parse(text);
-            if (Array.isArray(aiMismatches)) {
-                for (const mismatch of aiMismatches) {
-                    const existingIdx = items.findIndex(item => item.field === mismatch.field);
-                    if (existingIdx !== -1) {
-                        items[existingIdx] = {
-                            field: mismatch.field,
-                            status: 'mismatch',
-                            note_value: mismatch.note_value || items[existingIdx].note_value,
-                            document_value: mismatch.document_value || items[existingIdx].document_value
-                        };
-                    } else {
-                        items.push({
-                            field: mismatch.field,
-                            status: 'mismatch',
-                            note_value: mismatch.note_value || null,
-                            document_value: mismatch.document_value || null
-                        });
+export function performNoteDocumentComparison(record: Partial<PreAuthRecord>): NoteComparisonReport {
+    const extractions = record.rawExtractions || [];
+    
+    // 1. Combined document raw extractions (excluding note)
+    const docExtractions = extractions.filter(e => e.id !== 'clinical_note');
+    
+    // 2. Note raw extraction
+    const noteExtraction = extractions.find(e => e.id === 'clinical_note');
+    const noteData = noteExtraction ? noteExtraction.extractedData : null;
+    
+    const items: NoteComparisonItem[] = [];
+    
+    // Category scores tracker
+    const categoryPoints: Record<string, { earned: number; total: number }> = {
+        patient_identity: { earned: 0, total: 0 },
+        insurance: { earned: 0, total: 0 },
+        diagnosis: { earned: 0, total: 0 },
+        clinical_findings: { earned: 0, total: 0 },
+        treatment: { earned: 0, total: 0 }
+    };
+    
+    for (const fieldDef of COMPARISON_FIELDS) {
+        // Extract document value: try mapped record first if provenance is 'ocr' or 'manual'
+        let docStr = '';
+        const prov = record.provenanceMap?.[fieldDef.path];
+        if (prov && (prov.source === 'ocr' || prov.source === 'manual')) {
+            const val = getNestedProperty(record, fieldDef.path);
+            if (val !== undefined && val !== null) {
+                docStr = String(val).trim();
+            }
+        }
+        
+        // Fallback to raw OCR extractions if empty
+        if (!docStr) {
+            let bestDocVal: any = null;
+            let bestDocConf = -1;
+            for (const ext of docExtractions) {
+                const val = fieldDef.extractor(ext.extractedData);
+                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                    if (ext.confidence > bestDocConf) {
+                        bestDocConf = ext.confidence;
+                        bestDocVal = val;
                     }
                 }
             }
+            if (bestDocVal !== null && bestDocVal !== undefined) {
+                docStr = String(bestDocVal).trim();
+            }
         }
-    } catch (e) {
-        console.warn("[noteDocumentComparison] Sarvam consistency comparison failed, falling back to deterministic:", e);
-    }
+        
+        // Extract note value: try raw note extraction first
+        let noteStr = '';
+        if (noteData) {
+            const val = fieldDef.extractor(noteData);
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+                noteStr = String(val).trim();
+            }
+        }
+        
+        // Fallback to record if provenance says clinical note
+        if (!noteStr && prov && prov.source === 'clinical_note') {
+            const val = getNestedProperty(record, fieldDef.path);
+            if (val !== undefined && val !== null) {
+                noteStr = String(val).trim();
+            }
+        }
+        
+        let status: 'match' | 'conflict' | 'doc_only' | 'note_only' | 'missing' = 'missing';
+        
+        if (!docStr && !noteStr) {
+            status = 'missing';
+        } else if (docStr && !noteStr) {
+            status = 'doc_only';
+        } else if (!docStr && noteStr) {
+            status = 'note_only';
+        } else {
+            // Apply normalizers and comparison
+            const normDoc = fieldDef.normalizeFn ? fieldDef.normalizeFn(docStr) : normalizeString(docStr);
+            const normNote = fieldDef.normalizeFn ? fieldDef.normalizeFn(noteStr) : normalizeString(noteStr);
+            
+            let isMatch = false;
+            if (fieldDef.compareFn) {
+                isMatch = fieldDef.compareFn(docStr, noteStr);
+            } else {
+                isMatch = normDoc === normNote || normDoc.includes(normNote) || normNote.includes(normDoc);
+            }
+            status = isMatch ? 'match' : 'conflict';
+        }
+        
+        // Update category scores if field is not missing on both sides
+        if (status !== 'missing') {
+            const cat = fieldDef.category;
+            categoryPoints[cat].total += 1.0;
+            if (status === 'match') {
+                categoryPoints[cat].earned += 1.0;
+            } else if (status === 'doc_only' || status === 'note_only') {
+                categoryPoints[cat].earned += 0.5; // Partial match score
+            }
+        }
+        
+        items.push({
+            field: fieldDef.path,
+            displayName: fieldDef.displayName,
+            status,
+            document_value: docStr || null,
+            note_value: noteStr || null
+        });
 
-    return items;
+        // Add legacy mapping for backward compatibility
+        const legacyMapping: Record<string, string> = {
+            'patient.patientName': 'patient_name',
+            'patient.age': 'age',
+            'patient.gender': 'gender',
+            'insurance.policyNumber': 'policy_number',
+            'insurance.insurerName': 'insurer_name'
+        };
+        if (legacyMapping[fieldDef.path]) {
+            items.push({
+                field: legacyMapping[fieldDef.path],
+                displayName: fieldDef.displayName,
+                status: status === 'conflict' ? 'mismatch' : status as any,
+                document_value: docStr || null,
+                note_value: noteStr || null
+            });
+        }
+    }
+    
+    // Calculate category scores (handling empty categories via weight redistribution)
+    const categoryScores = {
+        patient_identity: 100,
+        insurance: 100,
+        diagnosis: 100,
+        clinical_findings: 100,
+        treatment: 100
+    };
+    
+    const categoryWeights = {
+        patient_identity: 0.10,
+        insurance: 0.10,
+        diagnosis: 0.25,
+        clinical_findings: 0.25,
+        treatment: 0.30
+    };
+    
+    let weightedSum = 0;
+    let weightDenominator = 0;
+    
+    for (const key of Object.keys(categoryWeights) as Array<keyof typeof categoryWeights>) {
+        const pts = categoryPoints[key];
+        if (pts.total > 0) {
+            const score = (pts.earned / pts.total) * 100;
+            categoryScores[key] = Math.round(score);
+            weightedSum += categoryWeights[key] * score;
+            weightDenominator += categoryWeights[key];
+        } else {
+            categoryScores[key] = 100;
+        }
+    }
+    
+    const overallScore = weightDenominator > 0 ? Math.round(weightedSum / weightDenominator) : 100;
+    
+    return {
+        items,
+        categoryScores,
+        overallScore
+    };
+}
+
+// Backward-compatibility wrapper
+export function compareNoteToDocument(noteText: string, documentData: any): NoteComparisonItem[] {
+    const mockRecord: Partial<PreAuthRecord> = {
+        patient: documentData.patient || {},
+        insurance: documentData.insurance || {},
+        clinical: {},
+        admission: {},
+        rawExtractions: [
+            {
+                id: 'mock_doc',
+                extractedData: {
+                    patient: {
+                        name: documentData.patient?.patientName,
+                        age: documentData.patient?.age,
+                        gender: documentData.patient?.gender,
+                    },
+                    insurance: {
+                        policy_number: documentData.insurance?.policyNumber,
+                        insurance_company: documentData.insurance?.insurerName,
+                    }
+                },
+                confidence: 1.0
+            },
+            {
+                id: 'clinical_note',
+                extractedData: {
+                    patient: {
+                        name: noteText.includes(documentData.patient?.patientName || '') ? documentData.patient?.patientName : null,
+                        gender: noteText.toLowerCase().includes('female') ? 'Female' : noteText.toLowerCase().includes('male') ? 'Male' : null,
+                    },
+                    insurance: {
+                        policy_number: noteText.includes(documentData.insurance?.policyNumber || '') ? documentData.insurance?.policyNumber : null,
+                        insurance_company: noteText.includes(documentData.insurance?.insurerName || '') ? documentData.insurance?.insurerName : null,
+                    }
+                },
+                confidence: 1.0
+            }
+        ]
+    };
+    const report = performNoteDocumentComparison(mockRecord);
+    return report.items.map(item => ({
+        ...item,
+        status: item.status === 'conflict' ? 'mismatch' : item.status // map to expected legacy status
+    }));
+}
+
+export async function compareNoteToDocumentWithAI(noteText: string, documentData: any): Promise<NoteComparisonItem[]> {
+    return compareNoteToDocument(noteText, documentData);
 }

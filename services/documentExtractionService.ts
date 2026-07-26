@@ -12,6 +12,8 @@ export interface ExtractedPatientData {
         address?: string | null;
         phone?: string | null;
         abha_id?: string | null;
+        city?: string | null;
+        state?: string | null;
     };
     insurance: {
         policy_number?: string | null;
@@ -21,12 +23,49 @@ export interface ExtractedPatientData {
         valid_till?: string | null;
         member_id?: string | null;
     };
+    clinical?: {
+        chief_complaints?: string | null;
+        duration_of_present_ailment?: string | null;
+        nature_of_illness?: 'Acute' | 'Chronic' | 'Acute on Chronic' | null;
+        history_of_present_illness?: string | null;
+        relevant_clinical_findings?: string | null;
+        treatment_taken_so_far?: string | null;
+        reason_for_hospitalisation?: string | null;
+        proposed_line_of_treatment?: {
+            medical?: boolean | null;
+            surgical?: boolean | null;
+            intensive_care?: boolean | null;
+            investigation?: boolean | null;
+            non_allopathic?: boolean | null;
+        } | null;
+        vitals?: {
+            bp?: string | null;
+            pulse?: string | null;
+            temp?: string | null;
+            spo2?: string | null;
+            rr?: string | null;
+        } | null;
+        medications?: string | null;
+        comorbidities?: string | null;
+        investigation_details?: string | null;
+    };
+    admission?: {
+        date_of_admission?: string | null;
+        time_of_admission?: string | null;
+        expected_days_of_stay?: number | null;
+        room_type?: string | null;
+        treating_doctor_name?: string | null;
+        treating_doctor_registration_number?: string | null;
+        hospital_name?: string | null;
+        date_of_discharge?: string | null;
+    };
     confidence: number;
     notes?: string;
     // Computed fields
     extracted_fields: string[];
     missing_fields: string[];
     clinical_excerpts?: string[];
+    diagnoses?: string[];
     // Derived, zero-AI-call score: 60% required-field completeness + 40% normalized
     // extraction confidence. Distinct from the whole-case "Claim Readiness Score"
     // in utils/readinessScore.ts — this is per-document extraction quality only.
@@ -67,7 +106,9 @@ Return ONLY valid JSON (no markdown formatting, no \`\`\`json block) in this exa
     "gender": "Male" | "Female" | "Other" | null,
     "address": "Full address or null",
     "phone": "Phone number or null",
-    "abha_id": "ABHA ID (Ayushman Bharat Health Account) or null"
+    "abha_id": "ABHA ID (Ayushman Bharat Health Account) or null",
+    "city": "Patient City or null",
+    "state": "Patient State or null"
   },
   "insurance": {
     "policy_number": "Policy/Certificate number or null",
@@ -79,6 +120,46 @@ Return ONLY valid JSON (no markdown formatting, no \`\`\`json block) in this exa
   },
   "confidence": "0-100 number",
   "notes": "Any issues or unclear text",
+  "diagnoses": [
+    "provisional or final diagnosis 1",
+    "provisional or final diagnosis 2"
+  ],
+  "clinical": {
+    "chief_complaints": "Brief summary of chief complaints or null",
+    "duration_of_present_ailment": "Duration of present ailment or null",
+    "nature_of_illness": "Acute" | "Chronic" | "Acute on Chronic" | null,
+    "history_of_present_illness": "Brief history of present illness or null",
+    "relevant_clinical_findings": "Relevant clinical findings or null",
+    "treatment_taken_so_far": "Details of any prior OPD treatment taken so far or null",
+    "reason_for_hospitalisation": "OPD justification / reason for hospitalisation or null",
+    "proposed_line_of_treatment": {
+      "medical": "boolean or null",
+      "surgical": "boolean or null",
+      "intensive_care": "boolean or null",
+      "investigation": "boolean or null",
+      "non_allopathic": "boolean or null"
+    },
+    "vitals": {
+      "bp": "string or null",
+      "pulse": "string or null",
+      "temp": "string or null",
+      "spo2": "string or null",
+      "rr": "string or null"
+    },
+    "medications": "Details of active medications or null",
+    "comorbidities": "Details of comorbidities or null",
+    "investigation_details": "Details of investigations or null"
+  },
+  "admission": {
+    "date_of_admission": "YYYY-MM-DD or null",
+    "time_of_admission": "HH:MM or null",
+    "expected_days_of_stay": "number of expected days of stay or null",
+    "room_type": "General" | "Semi-Private" | "Private" | "ICU" | null,
+    "treating_doctor_name": "Name of treating doctor or null",
+    "treating_doctor_registration_number": "Doctor registration number or null",
+    "hospital_name": "Hospital name or null",
+    "date_of_discharge": "YYYY-MM-DD or null"
+  },
   "clinical_excerpts": [
     "verbatim clinical quote or clinical finding 1",
     "verbatim clinical quote or clinical finding 2"
@@ -343,6 +424,7 @@ import { MODEL_DOCUMENT, MODEL_DOCUMENT_OPENROUTER, AI_PROVIDER, MODEL_SARVAM_TE
 // testable via tsx without a Vite runtime.
 import type { SplitPage } from '../utils/pdfSplitter';
 import { classifyGeminiError, geminiErrorUserMessage } from '../utils/geminiErrorClassifier';
+import { resolveDiagnosisToIcd, resolveExtractedDiagnoses } from './icdService';
 
 export type ExtractionProgressStage = 'ocr' | 'classifying' | 'extracting';
 
@@ -388,6 +470,7 @@ function mapLocalPipelineOutput(pythonOutput: any, markdownText: string) {
     };
     const clinical_excerpts = [pythonOutput?.clinical?.diagnosis, pythonOutput?.clinical?.symptoms]
         .filter((v): v is string => !!v);
+    const diagnoses = pythonOutput?.clinical?.diagnosis ? [pythonOutput.clinical.diagnosis] : [];
 
     // Split the intermediate markdown (reliable ---PAGE BREAK--- separators) into
     // ocrPages, rather than trusting the final JSON's raw_ocr_text_reference — that
@@ -404,6 +487,7 @@ function mapLocalPipelineOutput(pythonOutput: any, markdownText: string) {
         confidence: 0.75,
         notes: 'Extracted via local PaddleOCR+Qwen pipeline — no per-field confidence available.',
         clinical_excerpts,
+        diagnoses,
         ocrPages,
     };
 }
@@ -764,6 +848,9 @@ export const extractFromDocument = async (
         data = applyHeuristicFallbacks(data, fullDocText, file);
         data.document_type = documentType;
 
+        const resolvedDiagnoses = await resolveExtractedDiagnoses(data.diagnoses || [], fullDocText);
+        data.diagnoses = resolvedDiagnoses;
+
         const { extracted, missing } = computeExtractedMissingFields(data);
         const rawConfidence = Number(data.confidence ?? 95);
         let finalConfidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
@@ -1018,6 +1105,9 @@ ${fullDocText.substring(0, 8000)}
             
             // Force the type to the classified type
             data.document_type = documentType;
+
+            const resolvedDiagnoses = await resolveExtractedDiagnoses(data.diagnoses || [], fullDocText);
+            data.diagnoses = resolvedDiagnoses;
 
             const { extracted, missing } = computeExtractedMissingFields(data);
 

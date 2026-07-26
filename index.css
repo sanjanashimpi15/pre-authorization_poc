@@ -195,3 +195,9 @@ header, [class*="border-b bg-white"] {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* Widen Clinical Details textareas to span full container width */
+textarea.form-input {
+  display: block !important;
+  width: 100% !important;
+}

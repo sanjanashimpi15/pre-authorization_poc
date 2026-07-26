@@ -34,6 +34,16 @@ export const ICDPicker: React.FC<ICDPickerProps> = ({
       : null
   );
 
+  // Keep confirmed local state synced with incoming props
+  useEffect(() => {
+    if (initialCode && validateCode(initialCode)) {
+      setConfirmed({ code: initialCode, desc: initialDescription, method: initialMatchMethod || 'manual' });
+    } else {
+      setConfirmed(null);
+    }
+    setQuery(diagnosisText || '');
+  }, [initialCode, initialDescription, initialMatchMethod, diagnosisText]);
+
   // Run deterministic lookup as typing happens
   useEffect(() => {
     if (query.trim().length > 1) {

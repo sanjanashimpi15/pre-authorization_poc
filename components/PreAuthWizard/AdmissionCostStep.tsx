@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AdmissionDetails, CostEstimate, ClinicalDetails, RoomCategory, PastMedicalHistory, CaseComplexity } from '../PreAuthWizard/types';
+import { AdmissionDetails, CostEstimate, ClinicalDetails, RoomCategory, PastMedicalHistory, CaseComplexity, PreAuthRecord } from '../PreAuthWizard/types';
 import { getRateForCategory, getLOSForDiagnosis } from '../../config/rateCard';
 import { calculateTotals, formatCostDisplay } from '../../utils/costCalculator';
 import { todayISO, nowTimeString } from '../../utils/formatters';
@@ -16,6 +16,8 @@ interface AdmissionCostStepProps {
     onNext: () => void;
     onBack: () => void;
     complexity?: CaseComplexity;
+    record?: Partial<PreAuthRecord>;
+    onFieldManual?: (path: string) => void;
 }
 
 const ROOM_CATEGORIES: RoomCategory[] = ['General Ward', 'Semi-Private', 'Private', 'Deluxe', 'ICU', 'ICCU', 'NICU', 'HDU'];
@@ -46,10 +48,23 @@ const DEFAULT_PMH: PastMedicalHistory = {
 };
 
 export const AdmissionCostStep: React.FC<AdmissionCostStepProps> = ({
-    admission, cost, clinical, sumInsured, onAdmissionChange, onCostChange, onNext, onBack, complexity
+    admission, cost, clinical, sumInsured, onAdmissionChange, onCostChange, onNext, onBack, complexity,
+    record, onFieldManual
 }) => {
     const pmh = admission.pastMedicalHistory ?? DEFAULT_PMH;
     const [matchedPackage, setMatchedPackage] = useState<any>(null);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+
+    const renderAbsentWarning = (path: string) => {
+        if (focusedField === path && record?.provenanceMap?.[path]?.source === 'absent') {
+            return (
+                <p className="text-[10px] text-amber-600 font-semibold mt-1 animate-fade-in">
+                    ⚠️ This information was not found in the uploaded documents. Please enter it manually.
+                </p>
+            );
+        }
+        return null;
+    };
 
     const updateField = (partial: Partial<AdmissionDetails>) => onAdmissionChange({ ...admission, ...partial });
 
@@ -140,7 +155,8 @@ export const AdmissionCostStep: React.FC<AdmissionCostStepProps> = ({
 
     const handleRoomCategory = (cat: RoomCategory) => {
         const rate = getRateForCategory(cat);
-        updateField({ roomCategory: cat });
+        updateField({ roomCategory: cat, roomType: cat });
+        onFieldManual?.('admission.roomType');
         if (!cost.isPackageRate) {
             updateCost({
                 roomRentPerDay: rate.roomRentPerDay,
@@ -203,13 +219,27 @@ export const AdmissionCostStep: React.FC<AdmissionCostStepProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Date of Admission *</label>
-                        <input type="date" value={admission.dateOfAdmission ?? ''} onChange={e => updateField({ dateOfAdmission: e.target.value })}
+                        <input type="date" value={admission.dateOfAdmission ?? ''}
+                            onChange={e => {
+                                updateField({ dateOfAdmission: e.target.value });
+                                onFieldManual?.('admission.dateOfAdmission');
+                            }}
+                            onFocus={() => setFocusedField('admission.dateOfAdmission')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('admission.dateOfAdmission')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Time of Admission</label>
-                        <input type="time" value={admission.timeOfAdmission ?? ''} onChange={e => updateField({ timeOfAdmission: e.target.value })}
+                        <input type="time" value={admission.timeOfAdmission ?? ''}
+                            onChange={e => {
+                                updateField({ timeOfAdmission: e.target.value });
+                                onFieldManual?.('admission.timeOfAdmission');
+                            }}
+                            onFocus={() => setFocusedField('admission.timeOfAdmission')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" />
+                        {renderAbsentWarning('admission.timeOfAdmission')}
                     </div>
                 </div>
                 <div>
@@ -227,18 +257,33 @@ export const AdmissionCostStep: React.FC<AdmissionCostStepProps> = ({
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Ward Days</label>
-                        <input type="number" value={admission.expectedDaysInRoom ?? ''} onChange={e => { updateField({ expectedDaysInRoom: +e.target.value, expectedLengthOfStay: (+e.target.value) + (admission.expectedDaysInICU ?? 0) }); updateCost({ expectedRoomDays: +e.target.value }); }}
+                        <input type="number" value={admission.expectedDaysInRoom ?? ''}
+                            onChange={e => {
+                                updateField({ expectedDaysInRoom: +e.target.value, expectedLengthOfStay: (+e.target.value) + (admission.expectedDaysInICU ?? 0), expectedDaysOfStay: (+e.target.value) + (admission.expectedDaysInICU ?? 0) });
+                                updateCost({ expectedRoomDays: +e.target.value });
+                                onFieldManual?.('admission.expectedDaysOfStay');
+                            }}
+                            onFocus={() => setFocusedField('admission.expectedDaysOfStay')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" min={0} />
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">ICU Days</label>
-                        <input type="number" value={admission.expectedDaysInICU ?? ''} onChange={e => { updateField({ expectedDaysInICU: +e.target.value, expectedLengthOfStay: (+e.target.value) + (admission.expectedDaysInRoom ?? 0) }); updateCost({ expectedIcuDays: +e.target.value }); }}
+                        <input type="number" value={admission.expectedDaysInICU ?? ''}
+                            onChange={e => {
+                                updateField({ expectedDaysInICU: +e.target.value, expectedLengthOfStay: (+e.target.value) + (admission.expectedDaysInRoom ?? 0), expectedDaysOfStay: (+e.target.value) + (admission.expectedDaysInRoom ?? 0) });
+                                updateCost({ expectedIcuDays: +e.target.value });
+                                onFieldManual?.('admission.expectedDaysOfStay');
+                            }}
+                            onFocus={() => setFocusedField('admission.expectedDaysOfStay')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" min={0} />
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Total Length of Stay</label>
                         <input readOnly value={`${(admission.expectedLengthOfStay ?? 0)} days`}
                             className="w-full bg-opd-input-bg border border-opd-border rounded-lg px-3 py-1.5 text-xs text-opd-text-muted select-none outline-none font-semibold" />
+                        {renderAbsentWarning('admission.expectedDaysOfStay')}
                     </div>
                 </div>
             </div>

@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { ClinicalDetails, ClinicalDataSource, DiagnosisEntry, WizardVitals, CaseComplexity, PatientRecord, InsurancePolicyDetails } from '../PreAuthWizard/types';
+import { ClinicalDetails, ClinicalDataSource, DiagnosisEntry, WizardVitals, CaseComplexity, PatientRecord, InsurancePolicyDetails, PreAuthRecord } from '../PreAuthWizard/types';
 import { searchICD10 } from '../../config/icd10Database';
 import { ICDPicker } from './ICDPicker';
-import { compareNoteToDocumentWithAI, NoteComparisonItem } from '../../services/noteDocumentComparison';
+import { performNoteDocumentComparison, NoteComparisonItem, NoteComparisonReport } from '../../services/noteDocumentComparison';
+import { resolveDiagnosisToIcd, getCachedNormalization } from '../../services/icdService';
+
+if (typeof window !== 'undefined') {
+    (window as any).resolveDiagnosisToIcd = resolveDiagnosisToIcd;
+    (window as any).getCachedNormalization = getCachedNormalization;
+}
 
 interface ClinicalDetailsStepProps {
     clinical: Partial<ClinicalDetails>;
@@ -17,15 +23,18 @@ interface ClinicalDetailsStepProps {
     /** Called after a successful note comparison so the results can flow into
      *  the live readiness score via index.tsx state. */
     onNoteComparisonResult?: (items: NoteComparisonItem[]) => void;
+    record?: Partial<PreAuthRecord>;
+    onFieldManual?: (path: string) => void;
 }
 
 const DEFAULT_VITALS: WizardVitals = { bp: '', pulse: '', temp: '', spo2: '', rr: '' };
 
 export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
-    clinical, caseId, doctorName, onClinicalChange, onNext, onBack, complexity, patientData, insuranceData, onNoteComparisonResult
+    clinical, caseId, doctorName, onClinicalChange, onNext, onBack, complexity, patientData, insuranceData, onNoteComparisonResult,
+    record, onFieldManual
 }) => {
     const [dataSource, setDataSource] = useState<ClinicalDataSource | null>(clinical.chiefComplaints ? 'manual_entry' : null);
-    const [comparisonResult, setComparisonResult] = useState<NoteComparisonItem[] | null>(null);
+    const [comparisonResult, setComparisonResult] = useState<NoteComparisonReport | null>(null);
     const [comparing, setComparing] = useState(false);
     const [comparisonError, setComparisonError] = useState('');
     const [showOptionalFields, setShowOptionalFields] = useState(false);
@@ -34,6 +43,18 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
     const [showInjury, setShowInjury] = useState(false);
     const [showSurgery, setShowSurgery] = useState(false);
     const [showMaternity, setShowMaternity] = useState(false);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+
+    const renderAbsentWarning = (path: string) => {
+        if (focusedField === path && record?.provenanceMap?.[path]?.source === 'absent') {
+            return (
+                <p className="text-[10px] text-amber-600 font-semibold mt-1 animate-fade-in">
+                    ⚠️ This information was not found in the uploaded documents. Please enter it manually.
+                </p>
+            );
+        }
+        return null;
+    };
 
     // Auto-prefill hospitalisation reason for Low-complexity cases to speed up desk throughput
     if (complexity === 'Low' && !clinical.reasonForHospitalisation) {
@@ -55,12 +76,13 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
         setComparisonError('');
         setComparisonResult(null);
         try {
-            const noteText = [c.chiefComplaints, c.historyOfPresentIllness, c.relevantClinicalFindings]
-                .filter(Boolean).join('\n');
-            const result = await compareNoteToDocumentWithAI(noteText, { patient: patientData ?? {}, insurance: insuranceData ?? {} });
-            setComparisonResult(result);
+            if (!record) {
+                throw new Error("PreAuth record not loaded.");
+            }
+            const report = performNoteDocumentComparison(record);
+            setComparisonResult(report);
             // Bubble up so parent (index.tsx) can feed results into live readiness score
-            onNoteComparisonResult?.(result);
+            onNoteComparisonResult?.(report.items);
         } catch (err: any) {
             setComparisonError(err.message || 'Note comparison failed.');
         } finally {
@@ -70,6 +92,49 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
 
     const handleVitalChange = (field: keyof WizardVitals, val: string) => {
         update({ vitals: { ...vitals, [field]: val } });
+    };
+
+    const [loadingPill, setLoadingPill] = useState<string | null>(null);
+
+    const handleAddSuggestedDiagnosis = async (diagText: string) => {
+        setLoadingPill(diagText);
+        try {
+            const contextText = [c.chiefComplaints, c.historyOfPresentIllness, c.relevantClinicalFindings].filter(Boolean).join('\n');
+            const candidates = await resolveDiagnosisToIcd(diagText, contextText);
+            const topCandidate = candidates[0];
+            const autoSelect = topCandidate && (topCandidate.confidenceScore || 0) >= 0.80;
+            
+            const code = autoSelect ? topCandidate.code : 'Pending ICD-10';
+            const desc = autoSelect ? topCandidate.description : 'Selection required';
+            const matchMethod = autoSelect ? topCandidate.matchMethod : 'manual';
+            
+            const existing = c.diagnoses ?? [];
+            if (existing.some(d => d.diagnosis === diagText)) return;
+            
+            const newEntry: DiagnosisEntry = {
+                diagnosis: diagText,
+                icd10Code: code,
+                icd10Description: desc,
+                icd10MatchMethod: matchMethod,
+                probability: 0.90,
+                reasoning: topCandidate?.note || '',
+                isSelected: existing.length === 0,
+                originalDiagnosis: diagText,
+                normalizedPrimaryDiagnosis: topCandidate?.description || diagText,
+                associatedDiagnoses: [],
+                icd10Candidates: candidates
+            };
+            
+            update({
+                diagnoses: [...existing, newEntry],
+                selectedDiagnosisIndex: existing.length === 0 ? 0 : (c.selectedDiagnosisIndex ?? 0),
+                suggestedDiagnoses: (c.suggestedDiagnoses ?? []).filter(s => s !== diagText)
+            });
+        } catch (err) {
+            console.error("Error adding suggested diagnosis:", err);
+        } finally {
+            setLoadingPill(null);
+        }
     };
 
     const handleIcdSearch = (q: string) => {
@@ -82,11 +147,16 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
         if (existing.some(d => d.icd10Code === entry.code)) return;
         const newEntry: DiagnosisEntry = {
             diagnosis: entry.commonName ?? entry.description,
-            icd10Code: 'Pending ICD-10',
-            icd10Description: 'Selection required',
-            probability: 0.85,
-            reasoning: '',
+            icd10Code: entry.code,
+            icd10Description: entry.description,
+            icd10MatchMethod: 'exact',
+            probability: 0.95,
+            reasoning: 'Selected from ICD-10 Search Catalog',
             isSelected: existing.length === 0,
+            originalDiagnosis: entry.commonName ?? entry.description,
+            normalizedPrimaryDiagnosis: entry.commonName ?? entry.description,
+            associatedDiagnoses: [],
+            icd10Candidates: []
         };
         update({ diagnoses: [...existing, newEntry], selectedDiagnosisIndex: existing.length === 0 ? 0 : (c.selectedDiagnosisIndex ?? 0) });
         setIcdQuery('');
@@ -170,23 +240,45 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                 <h3 className="font-semibold text-opd-primary text-[10px] uppercase tracking-wider border-b border-opd-border pb-2 font-lora">Presenting Illness</h3>
                 <div>
                     <label className="form-label uppercase tracking-wider text-[9px] mb-1">Chief Complaints *</label>
-                    <textarea value={c.chiefComplaints ?? ''} onChange={e => update({ chiefComplaints: e.target.value })} rows={2}
+                    <textarea value={c.chiefComplaints ?? ''}
+                        onChange={e => {
+                            update({ chiefComplaints: e.target.value });
+                            onFieldManual?.('clinical.chiefComplaints');
+                        }}
+                        onFocus={() => setFocusedField('clinical.chiefComplaints')}
+                        onBlur={() => setFocusedField(null)}
+                        rows={4}
                         className="form-input"
                         placeholder="Fever, cough, breathlessness..." />
+                    {renderAbsentWarning('clinical.chiefComplaints')}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Duration of Ailment *</label>
-                        <input value={c.durationOfPresentAilment ?? ''} onChange={e => update({ durationOfPresentAilment: e.target.value })}
+                        <input value={c.durationOfPresentAilment ?? ''}
+                            onChange={e => {
+                                update({ durationOfPresentAilment: e.target.value });
+                                onFieldManual?.('clinical.durationOfPresentAilment');
+                            }}
+                            onFocus={() => setFocusedField('clinical.durationOfPresentAilment')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input" placeholder="e.g. 5 days" />
+                        {renderAbsentWarning('clinical.durationOfPresentAilment')}
                     </div>
                     <div>
                         <label className="form-label uppercase tracking-wider text-[9px] mb-1">Nature of Illness *</label>
-                        <select value={c.natureOfIllness ?? ''} onChange={e => update({ natureOfIllness: e.target.value as any })}
+                        <select value={c.natureOfIllness ?? ''}
+                            onChange={e => {
+                                update({ natureOfIllness: e.target.value as any });
+                                onFieldManual?.('clinical.natureOfIllness');
+                            }}
+                            onFocus={() => setFocusedField('clinical.natureOfIllness')}
+                            onBlur={() => setFocusedField(null)}
                             className="form-input">
                             <option value="">Select</option>
                             <option>Acute</option><option>Chronic</option><option>Acute on Chronic</option>
                         </select>
+                        {renderAbsentWarning('clinical.natureOfIllness')}
                     </div>
                 </div>
                 {complexity === 'Low' ? (
@@ -203,21 +295,45 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                             <div className="space-y-4 pt-2 border-t border-opd-border mt-2 animate-fade-in">
                                 <div>
                                     <label className="form-label uppercase tracking-wider text-[9px] mb-1">History of Present Illness</label>
-                                    <textarea value={c.historyOfPresentIllness ?? ''} onChange={e => update({ historyOfPresentIllness: e.target.value })} rows={3}
+                                    <textarea value={c.historyOfPresentIllness ?? ''}
+                                        onChange={e => {
+                                            update({ historyOfPresentIllness: e.target.value });
+                                            onFieldManual?.('clinical.historyOfPresentIllness');
+                                        }}
+                                        onFocus={() => setFocusedField('clinical.historyOfPresentIllness')}
+                                        onBlur={() => setFocusedField(null)}
+                                        rows={4}
                                         className="form-input"
                                         placeholder="Describe onset, progression, associated symptoms..." />
+                                    {renderAbsentWarning('clinical.historyOfPresentIllness')}
                                 </div>
                                 <div>
                                     <label className="form-label uppercase tracking-wider text-[9px] mb-1">Relevant Clinical Findings</label>
-                                    <textarea value={c.relevantClinicalFindings ?? ''} onChange={e => update({ relevantClinicalFindings: e.target.value })} rows={2}
+                                    <textarea value={c.relevantClinicalFindings ?? ''}
+                                        onChange={e => {
+                                            update({ relevantClinicalFindings: e.target.value });
+                                            onFieldManual?.('clinical.relevantClinicalFindings');
+                                        }}
+                                        onFocus={() => setFocusedField('clinical.relevantClinicalFindings')}
+                                        onBlur={() => setFocusedField(null)}
+                                        rows={4}
                                         className="form-input"
                                         placeholder="Examination findings, auscultation, palpation..." />
+                                    {renderAbsentWarning('clinical.relevantClinicalFindings')}
                                 </div>
                                 <div>
                                     <label className="form-label uppercase tracking-wider text-[9px] mb-1">Prior OPD Treatment (if any)</label>
-                                    <textarea value={c.treatmentTakenSoFar ?? ''} onChange={e => update({ treatmentTakenSoFar: e.target.value })} rows={2}
+                                    <textarea value={c.treatmentTakenSoFar ?? ''}
+                                        onChange={e => {
+                                            update({ treatmentTakenSoFar: e.target.value });
+                                            onFieldManual?.('clinical.treatmentTakenSoFar');
+                                        }}
+                                        onFocus={() => setFocusedField('clinical.treatmentTakenSoFar')}
+                                        onBlur={() => setFocusedField(null)}
+                                        rows={4}
                                         className="form-input"
                                         placeholder="OPD treatment tried..." />
+                                    {renderAbsentWarning('clinical.treatmentTakenSoFar')}
                                 </div>
                             </div>
                         )}
@@ -226,21 +342,45 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                     <>
                         <div>
                             <label className="form-label uppercase tracking-wider text-[9px] mb-1">History of Present Illness</label>
-                            <textarea value={c.historyOfPresentIllness ?? ''} onChange={e => update({ historyOfPresentIllness: e.target.value })} rows={3}
+                            <textarea value={c.historyOfPresentIllness ?? ''}
+                                onChange={e => {
+                                    update({ historyOfPresentIllness: e.target.value });
+                                    onFieldManual?.('clinical.historyOfPresentIllness');
+                                }}
+                                onFocus={() => setFocusedField('clinical.historyOfPresentIllness')}
+                                onBlur={() => setFocusedField(null)}
+                                rows={4}
                                 className="form-input"
                                 placeholder="Describe onset, progression, associated symptoms, prior treatment tried..." />
+                            {renderAbsentWarning('clinical.historyOfPresentIllness')}
                         </div>
                         <div>
                             <label className="form-label uppercase tracking-wider text-[9px] mb-1">Relevant Clinical Findings *</label>
-                            <textarea value={c.relevantClinicalFindings ?? ''} onChange={e => update({ relevantClinicalFindings: e.target.value })} rows={2}
+                            <textarea value={c.relevantClinicalFindings ?? ''}
+                                onChange={e => {
+                                    update({ relevantClinicalFindings: e.target.value });
+                                    onFieldManual?.('clinical.relevantClinicalFindings');
+                                }}
+                                onFocus={() => setFocusedField('clinical.relevantClinicalFindings')}
+                                onBlur={() => setFocusedField(null)}
+                                rows={4}
                                 className="form-input"
                                 placeholder="Examination findings, auscultation, palpation etc." />
+                            {renderAbsentWarning('clinical.relevantClinicalFindings')}
                         </div>
                         <div>
                             <label className="form-label uppercase tracking-wider text-[9px] mb-1">Prior OPD Treatment (if any)</label>
-                            <textarea value={c.treatmentTakenSoFar ?? ''} onChange={e => update({ treatmentTakenSoFar: e.target.value })} rows={2}
+                            <textarea value={c.treatmentTakenSoFar ?? ''}
+                                onChange={e => {
+                                    update({ treatmentTakenSoFar: e.target.value });
+                                    onFieldManual?.('clinical.treatmentTakenSoFar');
+                                }}
+                                onFocus={() => setFocusedField('clinical.treatmentTakenSoFar')}
+                                onBlur={() => setFocusedField(null)}
+                                rows={4}
                                 className="form-input"
                                 placeholder="e.g. Oral antibiotics for 3 days without relief..." />
+                            {renderAbsentWarning('clinical.treatmentTakenSoFar')}
                         </div>
                     </>
                 )}
@@ -262,32 +402,83 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                     )}
 
                     {comparisonResult && (
-                        <div className="bg-opd-input-bg border border-opd-border rounded-xl p-3 space-y-1.5">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-opd-text-secondary mb-1">
-                                Note vs. Document Comparison
-                            </div>
-                            {comparisonResult.map((item, i) => {
-                                const style =
-                                    item.status === 'match' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                    item.status === 'mismatch' ? 'bg-red-50 text-red-700 border-red-200' :
-                                    'bg-amber-50 text-amber-700 border-amber-200';
-                                const label =
-                                    item.status === 'match' ? 'Match' :
-                                    item.status === 'mismatch' ? 'Mismatch' :
-                                    item.status === 'missing_in_document' ? 'Missing in Document' :
-                                    'Missing in Note';
-                                return (
-                                    <div key={i} className={`text-[11px] rounded-lg border px-2.5 py-1.5 ${style}`}>
-                                        <span className="font-bold">{label}</span>
-                                        <span className="ml-1.5 font-semibold">{item.field}</span>
-                                        {(item.note_value || item.document_value) && (
-                                            <span className="block mt-0.5 opacity-80">
-                                                Note: {item.note_value ?? '—'} · Document: {item.document_value ?? '—'}
-                                            </span>
-                                        )}
+                        <div className="bg-opd-input-bg border border-opd-border rounded-xl p-4 space-y-4 shadow-sm">
+                            {/* Header & Overall Score */}
+                            <div className="flex items-center justify-between border-b border-opd-border pb-2.5">
+                                <div>
+                                    <div className="text-[11px] font-bold uppercase tracking-wider text-opd-primary font-lora">
+                                        Note vs. Document Consistency Check
                                     </div>
-                                );
-                            })}
+                                    <p className="text-[10px] text-opd-text-secondary mt-0.5 font-semibold">Weighted audit of structured source documents vs treating doctor's clinical note</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-opd-text-secondary">Overall Match</span>
+                                    <div className={`text-xl font-bold font-mono ${
+                                        comparisonResult.overallScore >= 80 ? 'text-emerald-600' :
+                                        comparisonResult.overallScore >= 50 ? 'text-amber-600' : 'text-rose-600'
+                                    }`}>
+                                        {comparisonResult.overallScore}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Category Scores Breakdown */}
+                            <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] bg-white p-2 rounded-lg border border-opd-border">
+                                <div>
+                                    <span className="text-opd-text-secondary block font-bold text-[9px] uppercase">Patient ID</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[11px]">{comparisonResult.categoryScores.patient_identity}%</span>
+                                    <span className="text-[8px] text-opd-text-secondary block mt-0.5 font-medium">(10%)</span>
+                                </div>
+                                <div className="border-l border-opd-border">
+                                    <span className="text-opd-text-secondary block font-bold text-[9px] uppercase">Insurance</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[11px]">{comparisonResult.categoryScores.insurance}%</span>
+                                    <span className="text-[8px] text-opd-text-secondary block mt-0.5 font-medium">(10%)</span>
+                                </div>
+                                <div className="border-l border-opd-border">
+                                    <span className="text-opd-text-secondary block font-bold text-[9px] uppercase">Diagnosis</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[11px]">{comparisonResult.categoryScores.diagnosis}%</span>
+                                    <span className="text-[8px] text-opd-text-secondary block mt-0.5 font-medium">(25%)</span>
+                                </div>
+                                <div className="border-l border-opd-border">
+                                    <span className="text-opd-text-secondary block font-bold text-[9px] uppercase">Findings</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[11px]">{comparisonResult.categoryScores.clinical_findings}%</span>
+                                    <span className="text-[8px] text-opd-text-secondary block mt-0.5 font-medium">(25%)</span>
+                                </div>
+                                <div className="border-l border-opd-border">
+                                    <span className="text-opd-text-secondary block font-bold text-[9px] uppercase">Treatment</span>
+                                    <span className="font-bold text-slate-800 font-mono text-[11px]">{comparisonResult.categoryScores.treatment}%</span>
+                                    <span className="text-[8px] text-opd-text-secondary block mt-0.5 font-medium">(30%)</span>
+                                </div>
+                            </div>
+
+                            {/* Detailed List */}
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                {comparisonResult.items.filter(item => item.status !== 'missing' && !['patient_name', 'age', 'gender', 'policy_number', 'insurer_name'].includes(item.field)).map((item, i) => {
+                                    const style =
+                                        item.status === 'match' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                        item.status === 'conflict' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                        'bg-amber-50 text-amber-700 border-amber-200';
+                                    const label =
+                                        item.status === 'match' ? 'Match' :
+                                        item.status === 'conflict' ? 'Conflict' :
+                                        item.status === 'doc_only' ? 'Document Only' :
+                                        'Clinical Note Only';
+                                    return (
+                                        <div key={i} className={`text-[11px] rounded-lg border px-2.5 py-1.5 ${style}`}>
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold">{item.displayName || item.field}</span>
+                                                <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-white/60 border border-current/15">{label}</span>
+                                            </div>
+                                            {(item.note_value || item.document_value) && (
+                                                <div className="mt-1 space-y-0.5 text-[10px] opacity-90 border-t border-current/10 pt-1 font-mono">
+                                                    {item.document_value && <div className="truncate"><span className="font-semibold">Document:</span> {item.document_value}</div>}
+                                                    {item.note_value && <div className="truncate"><span className="font-semibold">Clinical Note:</span> {item.note_value}</div>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -305,9 +496,16 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                         return (
                             <div key={f}>
                                 <label className="block text-[10px] text-opd-text-secondary font-semibold mb-1">{label}</label>
-                                <input value={vitals[f] ?? ''} onChange={e => handleVitalChange(f, e.target.value)}
+                                <input value={vitals[f] ?? ''}
+                                    onChange={e => {
+                                        handleVitalChange(f, e.target.value);
+                                        onFieldManual?.(`clinical.vitals.${f}`);
+                                    }}
+                                    onFocus={() => setFocusedField(`clinical.vitals.${f}`)}
+                                    onBlur={() => setFocusedField(null)}
                                     className={`form-input ${alertClass}`}
                                     placeholder={ph} />
+                                {renderAbsentWarning(`clinical.vitals.${f}`)}
                             </div>
                         );
                     })}
@@ -339,30 +537,83 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                         </div>
                     )}
                 </div>
+
+                {c.suggestedDiagnoses && c.suggestedDiagnoses.length > 0 && (
+                    <div className="flex flex-wrap gap-2 items-center bg-opd-input-bg border border-opd-border rounded-xl p-3">
+                        <span className="text-[10px] text-opd-text-secondary font-bold uppercase tracking-wider">Suggestions from Document:</span>
+                        {c.suggestedDiagnoses.map((s, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                disabled={loadingPill === s}
+                                onClick={() => handleAddSuggestedDiagnosis(s)}
+                                className="bg-primary-tint/10 hover:bg-primary-tint/20 border border-opd-primary/20 text-opd-primary px-2.5 py-1 rounded-full text-xs font-semibold transition-all disabled:opacity-50"
+                            >
+                                {loadingPill === s ? 'Resolving...' : `+ ${s}`}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {(c.diagnoses ?? []).length > 0 && (
                     <div className="space-y-2">
                         {(c.diagnoses ?? []).map((dx, i) => (
-                            <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${dx.isSelected ? 'bg-primary-tint/20 border-opd-primary' : 'bg-white border-opd-border hover:border-opd-primary/40'}`}
+                            <div key={i} className={`flex flex-col gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${dx.isSelected ? 'bg-primary-tint/20 border-opd-primary' : 'bg-white border-opd-border hover:border-opd-primary/40'}`}
                                 onClick={() => selectPrimaryDx(i)}>
-                                <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${dx.isSelected ? 'border-opd-primary' : 'border-opd-border'}`}>
-                                    {dx.isSelected && <div className="w-1.5 h-1.5 rounded-full bg-opd-primary" />}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="text-xs font-semibold text-opd-text-primary">{dx.diagnosis}</div>
-                                    <div className="text-[10px] text-opd-text-secondary mt-0.5">
-                                        {dx.icd10Code.includes('Pending') ? (
-                                            <span className="text-amber-700 font-bold">⚠️ {dx.icd10Code} — {dx.icd10Description}</span>
-                                        ) : (
-                                            <span className="font-medium font-mono">{dx.icd10Code} — {dx.icd10Description}</span>
-                                        )}
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${dx.isSelected ? 'border-opd-primary' : 'border-opd-border'}`}>
+                                        {dx.isSelected && <div className="w-1.5 h-1.5 rounded-full bg-opd-primary" />}
                                     </div>
+                                    <div className="flex-1">
+                                        <div className="text-xs font-semibold text-opd-text-primary">{dx.diagnosis}</div>
+                                        <div className="text-[10px] text-opd-text-secondary mt-0.5">
+                                            {dx.icd10Code.includes('Pending') ? (
+                                                <span className="text-amber-700 font-bold">⚠️ {dx.icd10Code} — {dx.icd10Description}</span>
+                                            ) : (
+                                                <span className="font-medium font-mono">{dx.icd10Code} — {dx.icd10Description}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {dx.isSelected && <span className="text-[9px] bg-primary-tint border border-opd-primary/15 text-opd-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider font-lora">Primary</span>}
+                                    <button onClick={e => { e.stopPropagation(); removeDx(i); }} className="text-opd-text-secondary hover:text-red-500 p-1.5 hover:bg-opd-bg rounded-lg transition-all" type="button">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
-                                {dx.isSelected && <span className="text-[9px] bg-primary-tint border border-opd-primary/15 text-opd-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">Primary</span>}
-                                <button onClick={e => { e.stopPropagation(); removeDx(i); }} className="text-opd-text-secondary hover:text-red-500 p-1.5 hover:bg-opd-bg rounded-lg transition-all" type="button">
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                                
+                                {dx.icd10Code.includes('Pending') && dx.icd10Candidates && dx.icd10Candidates.length > 0 && (
+                                    <div className="pl-6.5 flex flex-wrap gap-2 items-center border-t border-opd-border/40 pt-2" onClick={e => e.stopPropagation()}>
+                                        <span className="text-[9px] text-amber-700 font-bold uppercase tracking-wider">Ranked suggestions (Click to confirm):</span>
+                                        {dx.icd10Candidates.slice(0, 3).map((cand: any) => {
+                                            const scorePct = Math.round((cand.confidenceScore || 0) * 100);
+                                            return (
+                                                <button
+                                                    key={cand.code}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const updated = (c.diagnoses ?? []).map((d, idx) => {
+                                                            if (idx === i) {
+                                                                    return {
+                                                                        ...d,
+                                                                        icd10Code: cand.code,
+                                                                        icd10Description: cand.description,
+                                                                        icd10MatchMethod: cand.matchMethod
+                                                                    };
+                                                            }
+                                                            return d;
+                                                        });
+                                                        update({ diagnoses: updated });
+                                                    }}
+                                                    className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 rounded text-[10px] font-semibold transition-all flex items-center gap-1"
+                                                >
+                                                    <span className="font-mono font-bold">{cand.code}</span>
+                                                    <span className="opacity-70">({scorePct}%)</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -414,7 +665,10 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                             <label key={key} className="flex items-center gap-2 cursor-pointer bg-white border border-opd-border hover:border-opd-primary hover:bg-primary-tint/5 rounded-lg px-3.5 py-2 text-xs text-opd-text-secondary transition-all select-none shadow-sm">
                                 <input type="checkbox"
                                     checked={c.proposedLineOfTreatment?.[key] ?? false}
-                                    onChange={e => update({ proposedLineOfTreatment: { ...{ medical: false, surgical: false, intensiveCare: false, investigation: false, nonAllopathic: false }, ...c.proposedLineOfTreatment, [key]: e.target.checked } })}
+                                    onChange={e => {
+                                        update({ proposedLineOfTreatment: { ...{ medical: false, surgical: false, intensiveCare: false, investigation: false, nonAllopathic: false }, ...c.proposedLineOfTreatment, [key]: e.target.checked } });
+                                        onFieldManual?.(`clinical.proposedLineOfTreatment.${key}`);
+                                    }}
                                     className="accent-opd-primary w-3.5 h-3.5 rounded" />
                                 <span className="font-semibold" onClick={() => {
                                     if (key === 'surgical') setShowSurgery(prev => !prev);
@@ -425,9 +679,17 @@ export const ClinicalDetailsStep: React.FC<ClinicalDetailsStepProps> = ({
                 </div>
                 <div>
                     <label className="form-label uppercase tracking-wider text-[9px] mb-1.5">Why is OPD management NOT appropriate? *</label>
-                    <textarea value={c.reasonForHospitalisation ?? ''} onChange={e => update({ reasonForHospitalisation: e.target.value })} rows={3}
+                    <textarea value={c.reasonForHospitalisation ?? ''}
+                        onChange={e => {
+                            update({ reasonForHospitalisation: e.target.value });
+                            onFieldManual?.('clinical.reasonForHospitalisation');
+                        }}
+                        onFocus={() => setFocusedField('clinical.reasonForHospitalisation')}
+                        onBlur={() => setFocusedField(null)}
+                        rows={4}
                         className="form-input"
                         placeholder="e.g. Patient requires IV antibiotics, continuous oxygen therapy, and hemodynamic monitoring which cannot be accomplished on outpatient basis." />
+                    {renderAbsentWarning('clinical.reasonForHospitalisation')}
                 </div>
 
                 {/* Conditional Panels */}
