@@ -1,4 +1,4 @@
-import { getGoogleGenerativeAIClient, getOpenRouterClient, getLocalPipelineClient, getOllamaVisionClient, rotateApiKey, getActiveApiKey, getSarvamOcrClient, getSarvamTextClient } from './apiKeys';
+import { getGoogleGenerativeAIClient, getOpenRouterClient, getLocalPipelineClient, getOllamaVisionClient, rotateApiKey, getActiveApiKey, getSarvamOcrClient, getSarvamTextClient, getGroqClient } from './apiKeys';
 import { classifyPagesByKeywords } from './documentClassificationService';
 
 export interface ExtractedPatientData {
@@ -416,7 +416,7 @@ function getPreCachedExcerpts(fileName: string): string[] {
     ];
 }
 
-import { MODEL_DOCUMENT, MODEL_DOCUMENT_OPENROUTER, AI_PROVIDER, MODEL_SARVAM_TEXT } from '../config/modelConfig';
+import { MODEL_DOCUMENT, MODEL_DOCUMENT_OPENROUTER, AI_PROVIDER, MODEL_SARVAM_TEXT, MODEL_GROQ } from '../config/modelConfig';
 // Type-only — erased at compile time, doesn't trigger pdfSplitter.ts's runtime import
 // chain (which includes a Vite-only `?url` worker import that breaks under plain Node/tsx).
 // renderPdfPageThumbnails (a real runtime value, needed only in the ollama-vision branch
@@ -492,6 +492,158 @@ function mapLocalPipelineOutput(pythonOutput: any, markdownText: string) {
     };
 }
 
+function reconcileExtractedChunks(chunks: any[]): any {
+    if (chunks.length === 0) return {};
+    if (chunks.length === 1) return chunks[0];
+
+    const master: any = {
+        document_type: 'unknown',
+        patient: {},
+        insurance: {},
+        confidence: 0,
+        notes: '',
+        diagnoses: [],
+        clinical: {
+            proposed_line_of_treatment: {},
+            vitals: {}
+        },
+        admission: {},
+        clinical_excerpts: []
+    };
+
+    const docTypeCounts: Record<string, number> = {};
+    let totalConfidence = 0;
+    let confidenceCount = 0;
+    const notesList: string[] = [];
+
+    for (const chunk of chunks) {
+        if (!chunk) continue;
+
+        if (chunk.document_type && chunk.document_type !== 'unknown') {
+            docTypeCounts[chunk.document_type] = (docTypeCounts[chunk.document_type] || 0) + 1;
+        }
+
+        if (chunk.confidence !== undefined && chunk.confidence !== null) {
+            totalConfidence += Number(chunk.confidence);
+            confidenceCount++;
+        }
+
+        if (chunk.notes) {
+            notesList.push(chunk.notes);
+        }
+
+        // Merge patient fields
+        if (chunk.patient) {
+            Object.keys(chunk.patient).forEach(k => {
+                const val = chunk.patient[k];
+                if (val !== null && val !== undefined && val !== '') {
+                    if (master.patient[k] === null || master.patient[k] === undefined || master.patient[k] === '') {
+                        master.patient[k] = val;
+                    }
+                }
+            });
+        }
+
+        // Merge insurance fields
+        if (chunk.insurance) {
+            Object.keys(chunk.insurance).forEach(k => {
+                const val = chunk.insurance[k];
+                if (val !== null && val !== undefined && val !== '') {
+                    if (master.insurance[k] === null || master.insurance[k] === undefined || master.insurance[k] === '') {
+                        master.insurance[k] = val;
+                    }
+                }
+            });
+        }
+
+        // Merge diagnoses (case-insensitively deduplicated)
+        if (Array.isArray(chunk.diagnoses)) {
+            chunk.diagnoses.forEach((d: string) => {
+                if (d && !master.diagnoses.some((existing: string) => existing.toLowerCase().trim() === d.toLowerCase().trim())) {
+                    master.diagnoses.push(d);
+                }
+            });
+        }
+
+        // Merge clinical fields
+        if (chunk.clinical) {
+            Object.keys(chunk.clinical).forEach(k => {
+                if (k === 'proposed_line_of_treatment') {
+                    if (chunk.clinical.proposed_line_of_treatment) {
+                        Object.keys(chunk.clinical.proposed_line_of_treatment).forEach(subK => {
+                            if (chunk.clinical.proposed_line_of_treatment[subK] === true) {
+                                master.clinical.proposed_line_of_treatment[subK] = true;
+                            }
+                        });
+                    }
+                } else if (k === 'vitals') {
+                    if (chunk.clinical.vitals) {
+                        Object.keys(chunk.clinical.vitals).forEach(subK => {
+                            const val = chunk.clinical.vitals[subK];
+                            if (val !== null && val !== undefined && val !== '') {
+                                if (master.clinical.vitals[subK] === null || master.clinical.vitals[subK] === undefined || master.clinical.vitals[subK] === '') {
+                                    master.clinical.vitals[subK] = val;
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    const val = chunk.clinical[k];
+                    if (val !== null && val !== undefined && val !== '') {
+                        if (master.clinical[k] === null || master.clinical[k] === undefined || master.clinical[k] === '') {
+                            master.clinical[k] = val;
+                        } else if (typeof master.clinical[k] === 'string' && typeof val === 'string' && master.clinical[k] !== val) {
+                            if (!master.clinical[k].includes(val)) {
+                                master.clinical[k] += '; ' + val;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Merge admission fields
+        if (chunk.admission) {
+            Object.keys(chunk.admission).forEach(k => {
+                const val = chunk.admission[k];
+                if (val !== null && val !== undefined && val !== '') {
+                    if (master.admission[k] === null || master.admission[k] === undefined || master.admission[k] === '') {
+                        master.admission[k] = val;
+                    }
+                }
+            });
+        }
+
+        // Merge clinical excerpts
+        if (Array.isArray(chunk.clinical_excerpts)) {
+            chunk.clinical_excerpts.forEach((exc: string) => {
+                if (exc && !master.clinical_excerpts.includes(exc)) {
+                    master.clinical_excerpts.push(exc);
+                }
+            });
+        }
+    }
+
+    // Assign document type
+    let bestDocType = 'unknown';
+    let maxCount = 0;
+    Object.entries(docTypeCounts).forEach(([type, count]) => {
+        if (count > maxCount) {
+            maxCount = count;
+            bestDocType = type;
+        }
+    });
+    master.document_type = bestDocType;
+
+    // Assign confidence
+    master.confidence = confidenceCount > 0 ? Math.round(totalConfidence / confidenceCount) : 95;
+
+    // Assign notes
+    master.notes = notesList.join('; ');
+
+    return master;
+}
+
 export const extractFromDocument = async (
     file: File,
     pages?: SplitPage[],
@@ -546,7 +698,7 @@ export const extractFromDocument = async (
         };
     }
 
-    if (AI_PROVIDER === 'sarvam') {
+    if (AI_PROVIDER === 'sarvam' || AI_PROVIDER === 'groq') {
         const { PDFDocument } = await import('pdf-lib');
         const pdfjsLib = await import('pdfjs-dist');
 
@@ -827,24 +979,86 @@ export const extractFromDocument = async (
 
         onProgress?.('extracting');
 
-        // Extract patient and insurance structured info using Sarvam completions (non-think mode)
-        const textClient = getSarvamTextClient();
-        const model = textClient.getGenerativeModel({ model: MODEL_SARVAM_TEXT });
+        let data: any = null;
 
-        const extractionPayload = [
-            { text: EXTRACTION_PROMPT },
-            { text: fullDocText }
-        ];
+        if (AI_PROVIDER === 'groq') {
+            console.log('[documentExtractionService] Running Groq extraction path with chunking fallback...');
+            const textClient = getGroqClient();
+            const model = textClient.getGenerativeModel({ model: MODEL_GROQ });
 
-        const extractionRes = await model.generateContent(extractionPayload, { forceJson: true, maxTokens: 4096 });
-        let jsonStr = extractionRes.response.text().trim();
-        if (jsonStr.startsWith('```json')) {
-            jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
-        } else if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
+            // Chunk pages to respect TPM limits (max 6,000 characters of text per prompt call)
+            const textChunks: string[] = [];
+            let currentChunkText = '';
+            
+            for (const page of pagesToProcess) {
+                const pageText = ocrPages[String(page.index)] || '';
+                // If adding this page's text exceeds 6,000 chars and we already have some text, start a new chunk
+                if (currentChunkText.length > 0 && (currentChunkText.length + pageText.length) > 6000) {
+                    textChunks.push(currentChunkText);
+                    currentChunkText = pageText;
+                } else {
+                    currentChunkText += (currentChunkText ? '\n\n' : '') + pageText;
+                }
+            }
+            if (currentChunkText) {
+                textChunks.push(currentChunkText);
+            }
+
+            console.log(`[documentExtractionService] Split document into ${textChunks.length} chunk(s) for Groq extraction.`);
+
+            const chunkResults: any[] = [];
+            for (let i = 0; i < textChunks.length; i++) {
+                // To avoid hitting Groq's Tokens Per Minute (TPM) limit on free/developer tiers,
+                // we introduce a 2-second delay between sequential chunk calls.
+                if (i > 0) {
+                    console.log(`[documentExtractionService] Rate limit mitigation: waiting 2000ms before calling Groq for chunk ${i + 1}...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+                const chunkText = textChunks[i];
+                console.log(`[documentExtractionService] Processing chunk ${i + 1}/${textChunks.length} (length: ${chunkText.length} chars) via Groq...`);
+                
+                const extractionPayload = [
+                    { text: EXTRACTION_PROMPT },
+                    { text: chunkText }
+                ];
+                
+                // maxTokens of 1500 is more than enough for a single chunk's JSON extraction output
+                const extractionRes = await model.generateContent(extractionPayload, { forceJson: true, maxTokens: 1500 });
+                let jsonStr = extractionRes.response.text().trim();
+                if (jsonStr.startsWith('```json')) {
+                    jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
+                } else if (jsonStr.startsWith('```')) {
+                    jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
+                }
+                
+                const parsed = JSON.parse(jsonStr);
+                chunkResults.push(parsed);
+            }
+
+            // Reconcile/merge extracted chunks
+            data = reconcileExtractedChunks(chunkResults);
+
+        } else {
+            console.log(`[documentExtractionService] Running Sarvam extraction path (model: ${MODEL_SARVAM_TEXT})...`);
+            const textClient = getSarvamTextClient();
+            const model = textClient.getGenerativeModel({ model: MODEL_SARVAM_TEXT });
+
+            const extractionPayload = [
+                { text: EXTRACTION_PROMPT },
+                { text: fullDocText }
+            ];
+
+            const extractionRes = await model.generateContent(extractionPayload, { forceJson: true, maxTokens: 4096 });
+            let jsonStr = extractionRes.response.text().trim();
+            if (jsonStr.startsWith('```json')) {
+                jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '').trim();
+            } else if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '').trim();
+            }
+
+            data = JSON.parse(jsonStr);
         }
-
-        let data = JSON.parse(jsonStr);
         data = applyHeuristicFallbacks(data, fullDocText, file);
         data.document_type = documentType;
 

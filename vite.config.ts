@@ -277,6 +277,49 @@ export default defineConfig(({ mode }) => {
           return;
         }
 
+        if (pathname === '/api/groq' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const modulePath = path.resolve(process.cwd(), './api/groq.ts');
+              const { default: handler } = await server.ssrLoadModule(modulePath);
+
+              const mockRes = {
+                statusCode: 200,
+                status(code: number) {
+                  this.statusCode = code;
+                  res.statusCode = code;
+                  return this;
+                },
+                json(data: any) {
+                  res.statusCode = this.statusCode;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(data));
+                },
+                send(data: any) {
+                  res.statusCode = this.statusCode;
+                  res.end(data);
+                }
+              };
+
+              const mockReq = {
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+                body: body ? JSON.parse(body) : {}
+              };
+
+              await handler(mockReq, mockRes);
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message || "Groq proxy failed locally" }));
+            }
+          });
+          return;
+        }
+
         if (pathname === '/api/db' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });

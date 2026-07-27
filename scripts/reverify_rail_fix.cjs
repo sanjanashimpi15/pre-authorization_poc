@@ -7,6 +7,8 @@ const fs = require('fs');
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({ viewport: { width: 1400, height: 950 } });
     const page = await context.newPage();
+    page.on('console', msg => console.log(`[Browser Console] ${msg.type().toUpperCase()}: ${msg.text()}`));
+    page.on('pageerror', err => console.error(`[Browser PageError] ${err.toString()}`));
 
     const artifactDir = 'C:/Users/sanja/.gemini/antigravity/brain/9c6ac357-688b-47dd-bbc8-1ece3f5c9b95';
     fs.mkdirSync(artifactDir, { recursive: true });
@@ -68,8 +70,9 @@ const fs = require('fs');
     // ─────────────────────────────────────────────────────────────────
     // STATE 3: OCR Extraction completes — Rail MUST appear with real score
     // ─────────────────────────────────────────────────────────────────
-    console.log('\n[STATE 3] Waiting for OCR extraction to complete (~15s)...');
-    await page.waitForTimeout(15000);
+    console.log('\n[STATE 3] Waiting for OCR extraction progress bar to disappear...');
+    await page.waitForSelector('text=Scanning & Classifying Document...', { state: 'detached', timeout: 60000 });
+    await page.waitForTimeout(2000); // short settle buffer
 
     await page.screenshot({ path: path.join(artifactDir, 'reverify_state3_ocr_completed_rail.png') });
     const railState3 = await page.locator('aside:has-text("Claim Readiness")').isVisible();

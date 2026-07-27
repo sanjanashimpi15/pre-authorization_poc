@@ -15,13 +15,13 @@ export const MODEL_DOCUMENT_OPENROUTER = 'google/gemini-2.5-flash';
 // (api/local.ts) instead of a hosted API — see documentExtractionService.ts's local branch.
 // 'ollama-vision' routes to direct-vision Qwen2.5-VL via Ollama (api/ollama-vision.ts),
 // bypassing OCR entirely — single vision call per page, see documentExtractionService.ts.
-console.log("[modelConfig] Module evaluation process.env.AI_PROVIDER:", process.env.AI_PROVIDER);
-export const AI_PROVIDER: 'gemini' | 'openrouter' | 'local' | 'ollama-vision' | 'sarvam' = (
+export const AI_PROVIDER: 'gemini' | 'openrouter' | 'local' | 'ollama-vision' | 'sarvam' | 'groq' = (
     (typeof window !== 'undefined' ? (import.meta as any).env?.VITE_AI_PROVIDER : process.env.AI_PROVIDER)
     || 'gemini'
-) as 'gemini' | 'openrouter' | 'local' | 'ollama-vision' | 'sarvam';
+) as 'gemini' | 'openrouter' | 'local' | 'ollama-vision' | 'sarvam' | 'groq';
 console.log("[modelConfig] Resolved AI_PROVIDER constant:", AI_PROVIDER);
 export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';  // keep as-is, still active
 export const MODEL_AUDIO = 'gemini-2.5-flash-native-audio-preview-12-2025'; // native audio preview
 export const MODEL_SARVAM_TEXT = 'sarvam-30b';
+export const MODEL_GROQ = 'llama-3.3-70b-versatile';
 

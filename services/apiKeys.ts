@@ -432,3 +432,69 @@ export function getSarvamTextClient(): any {
     };
 }
 
+async function proxyGroq(model: string, parts: any[], forceJson: boolean, maxTokens?: number) {
+    if (typeof window === 'undefined') {
+        const handlerModule = await import('../api/groq');
+        const handler = handlerModule.default;
+        const req = {
+            method: 'POST',
+            body: { model, parts, forceJson, maxTokens }
+        };
+        let statusCode = 200;
+        let responseBody: any = null;
+        const res = {
+            status: (code: number) => {
+                statusCode = code;
+                return res;
+            },
+            json: (body: any) => {
+                responseBody = body;
+                return res;
+            },
+            send: (body: any) => {
+                responseBody = body;
+                return res;
+            }
+        };
+        await handler(req, res as any);
+        if (statusCode !== 200) {
+            throw new Error(`Groq in-process error: ${statusCode} - ${JSON.stringify(responseBody)}`);
+        }
+        return responseBody;
+    }
+
+    const response = await fetch('/api/groq', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ model, parts, forceJson, maxTokens })
+    });
+    if (!response.ok) {
+        const errText = await response.text();
+        const error: any = new Error(`Groq proxy error: ${response.status} - ${errText}`);
+        error.status = response.status;
+        throw error;
+    }
+    return await response.json();
+}
+
+export function getGroqClient(): any {
+    return {
+        getGenerativeModel: (modelArgs: { model: string }) => {
+            return {
+                generateContent: async (parts: any[], options?: { forceJson?: boolean; maxTokens?: number }) => {
+                    const resJson = await retryOnServiceUnavailable(() =>
+                        proxyGroq(modelArgs.model, parts, !!options?.forceJson, options?.maxTokens)
+                    );
+                    return {
+                        response: {
+                            text: () => resJson.text
+                        }
+                    };
+                }
+            };
+        }
+    };
+}
+
