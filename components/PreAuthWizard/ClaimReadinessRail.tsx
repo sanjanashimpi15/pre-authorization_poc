@@ -49,7 +49,7 @@ function ScoreRing({ score }: { score: number }) {
                     <circle
                         cx={RING_CX} cy={RING_CY} r={RING_R}
                         fill="none"
-                        stroke="#E1E7E6"
+                        stroke="var(--opd-border)"
                         strokeWidth={6}
                     />
                     {/* Progress arc */}
@@ -183,6 +183,8 @@ export const ClaimReadinessRail: React.FC<ClaimReadinessRailProps> = ({
         return 0;
     });
 
+    const showSuccessCard = finalScore === 100 && allMissingItems.length === 0 && queries.length === 0;
+
     const railContent = (
         <div className="flex flex-col gap-5">
             {/* ── Score Ring + Status ──────────────────────────────── */}
@@ -216,46 +218,50 @@ export const ClaimReadinessRail: React.FC<ClaimReadinessRailProps> = ({
             </div>
 
             {/* ── Queries ─────────────────────────────────────────── */}
-            <div className="space-y-2">
-                <div className="text-[10px] font-bold font-lora uppercase tracking-wider text-opd-text-secondary">
-                    Open Queries {queries.length > 0 && <span className="text-opd-text-muted font-mono text-[9px] ml-1">({queries.length})</span>}
-                </div>
+            {(tpaLoading || queries.length > 0 || showSuccessCard) && (
+                <div className="space-y-2">
+                    <div className="text-[10px] font-bold font-lora uppercase tracking-wider text-opd-text-secondary">
+                        Open Queries {queries.length > 0 && <span className="text-opd-text-muted font-mono text-[9px] ml-1">({queries.length})</span>}
+                    </div>
 
-                {tpaLoading ? (
-                    /* Calm loading — pulsing dots, no spinner */
-                    <div className="flex items-center gap-2 py-3 px-1">
-                        <div className="flex gap-1">
-                            {[0, 1, 2].map(i => (
-                                <span
+                    {tpaLoading ? (
+                        /* Calm loading — pulsing dots, no spinner */
+                        <div className="flex items-center gap-2 py-3 px-1">
+                            <div className="flex gap-1">
+                                {[0, 1, 2].map(i => (
+                                    <span
+                                        key={i}
+                                        className="pulse-dot inline-block w-1 h-1 rounded-full bg-opd-primary"
+                                    />
+                                ))}
+                            </div>
+                            <span className="text-xs text-opd-text-secondary font-medium">
+                                Reviewing case…
+                            </span>
+                        </div>
+                    ) : queries.length === 0 ? (
+                        showSuccessCard ? (
+                            <div
+                                className="rounded-lg p-3.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 text-center"
+                            >
+                                Ready. No open queries anticipated.
+                            </div>
+                        ) : null
+                    ) : (
+                        <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                            {queries.map((q, i) => (
+                                <QueryItem
                                     key={i}
-                                    className="pulse-dot inline-block w-1 h-1 rounded-full bg-opd-primary"
+                                    query={q.query}
+                                    reason={q.reason}
+                                    severity={q.severity}
+                                    source={q.source}
                                 />
                             ))}
                         </div>
-                        <span className="text-xs text-opd-text-secondary font-medium">
-                            Reviewing case…
-                        </span>
-                    </div>
-                ) : queries.length === 0 ? (
-                    <div
-                        className="rounded-lg p-3.5 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 text-center"
-                    >
-                        Ready. No open queries anticipated.
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-                        {queries.map((q, i) => (
-                            <QueryItem
-                                key={i}
-                                query={q.query}
-                                reason={q.reason}
-                                severity={q.severity}
-                                source={q.source}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {/* ── Gap Checklist ────────────────────────────────────── */}
             {allMissingItems.length > 0 && (

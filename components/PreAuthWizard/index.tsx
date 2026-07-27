@@ -162,6 +162,54 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
 
     const [saving, setSaving] = useState(false);
 
+    // Theme state
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = sessionStorage.getItem('aivana_preauth_theme');
+            if (saved === 'dark' || saved === 'light') return saved;
+        }
+        return 'light';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+    }, [theme]);
+
+    // Focus tracker for inputs
+    const lastFocusedRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const handleFocusIn = (e: FocusEvent) => {
+            const target = e.target as HTMLElement;
+            if (target && target.tagName !== 'BUTTON') {
+                lastFocusedRef.current = target;
+            }
+        };
+        document.addEventListener('focusin', handleFocusIn);
+        return () => document.removeEventListener('focusin', handleFocusIn);
+    }, []);
+
+    const toggleTheme = () => {
+        const nextTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(nextTheme);
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('aivana_preauth_theme', nextTheme);
+        }
+        if (lastFocusedRef.current) {
+            const el = lastFocusedRef.current;
+            setTimeout(() => {
+                try { el.focus(); } catch (err) {}
+            }, 50);
+        }
+    };
+
     // ── Rail visibility: hide on Step 1 until a real extraction score exists ──
     // On step 1: only show AFTER extraction completes AND we're not mid-scan.
     // On steps 2–4: always show.
@@ -411,7 +459,7 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-opd-text-primary/45 backdrop-blur-sm overflow-y-auto">
+        <div className={`fixed inset-0 z-50 flex items-start justify-center bg-opd-text-primary/45 backdrop-blur-sm overflow-y-auto theme-${theme} ${theme === 'dark' ? 'dark' : ''}`}>
             <div className="wizard-modal-container bg-white border border-opd-border rounded-2xl w-full max-w-5xl my-8 mx-4 shadow-2xl overflow-hidden flex flex-col" style={{ display: 'flex', flexDirection: 'column' }}>
                 {/* Modal Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-opd-border bg-opd-input-bg text-opd-text-primary">
@@ -438,6 +486,14 @@ export const PreAuthWizard: React.FC<PreAuthWizardProps> = ({
                                 Saving...
                             </span>
                         )}
+                        <button
+                            type="button"
+                            onClick={toggleTheme}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-opd-border hover:border-opd-primary hover:bg-primary-tint/10 text-opd-text-secondary hover:text-opd-primary transition-all duration-150 text-[10px] font-semibold uppercase tracking-wider cursor-pointer"
+                            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+                        >
+                            <span>{theme === 'light' ? '🌙 Dark' : '☀️ Light'}</span>
+                        </button>
                         <button onClick={onClose} className="text-opd-text-secondary hover:text-opd-primary p-1 rounded-lg hover:bg-opd-bg transition-colors" type="button">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

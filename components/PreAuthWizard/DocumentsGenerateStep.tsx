@@ -51,6 +51,7 @@ export const DocumentsGenerateStep: React.FC<DocGenerateStepProps> = ({
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [finalCaseData, setFinalCaseData] = useState<Partial<PreAuthRecord>>(() => record);
+    const [showTooltip, setShowTooltip] = useState(false);
 
     const initialHtmlContent = useMemo(() => {
         return generateFull9PagePreAuthHtml(record, { editable: true });
@@ -174,20 +175,37 @@ export const DocumentsGenerateStep: React.FC<DocGenerateStepProps> = ({
             <div className="w-full space-y-4">
                 <div className="bg-white p-4 rounded-2xl border border-opd-border shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-opd-border pb-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 relative">
                             <span className="font-bold text-xs uppercase tracking-wider text-opd-primary font-lora">Generated Pre-Authorization Form</span>
                             <span className="text-[10px] bg-primary-tint text-opd-primary px-2 py-0.5 rounded font-mono font-bold border border-opd-primary/10">9 Pages A4</span>
+                            
+                            {/* Info Tooltip Icon */}
+                            <div 
+                                className="relative inline-flex items-center justify-center cursor-help group"
+                                onMouseEnter={() => setShowTooltip(true)}
+                                onMouseLeave={() => setShowTooltip(false)}
+                            >
+                                <span 
+                                    className="text-opd-text-muted hover:text-opd-primary text-[10px] font-bold w-4 h-4 rounded-full border border-opd-border bg-opd-bg flex items-center justify-center select-none font-mono"
+                                    id="preview-info-icon"
+                                >
+                                    i
+                                </span>
+                                
+                                {showTooltip && (
+                                    <div 
+                                        className="absolute left-0 top-6 z-50 w-72 p-3.5 bg-opd-surface border border-opd-border rounded-xl shadow-xl text-[11px] text-opd-text-secondary leading-relaxed animate-fade-in pointer-events-none font-sans font-medium"
+                                        id="preview-info-tooltip"
+                                    >
+                                        <div className="font-bold text-opd-primary mb-1 uppercase tracking-wider text-[9px] font-lora">Interactive Preview Mode</div>
+                                        Edits made in the preview below affect only the final downloaded/printed PDF and do not propagate back to the database or recalculate the Claim Readiness score.
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <span className="text-[11px] text-emerald-500 font-bold flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             Document Ready
-                        </span>
-                    </div>
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-800 font-semibold leading-relaxed shadow-sm flex items-start gap-2">
-                        <span className="text-base leading-none">💡</span>
-                        <span>
-                            Edits made in the preview below affect only the final downloaded/printed PDF and do not propagate back to the database or recalculate the Claim Readiness score.
                         </span>
                     </div>
 

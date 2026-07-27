@@ -1,0 +1,4 @@
+VITE_API_URL=https://api.aivanahealth.com
+VITE_PRODUCT_URL=https://opd.aivanahealth.com
+VITE_GEMINI_API_KEY=REPLACED_KEY
+GEMINI_API_KEY=REPLACED_KEY

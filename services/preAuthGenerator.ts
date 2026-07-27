@@ -486,11 +486,6 @@ export function generateFull9PagePreAuthHtml(record: any, options?: { editable?:
 <body>
 
 <!-- ================= PAGE 1: TITLE + SECTION A + SECTION B ================= -->
-${options?.editable ? `
-<div class="edit-warning-banner" style="background-color: #f0fdfa; border: 1px solid #ccfbf1; color: #0d9488; padding: 10px 14px; border-radius: 8px; margin: 10px 0 15px 0; font-family: sans-serif; font-size: 11px; font-weight: 500; line-height: 1.4;">
-    <strong>Interactive Preview Mode:</strong> Edits made below affect only the final downloaded PDF and do not recalculate the Claim Readiness score.
-</div>
-` : ''}
 <div class="doc-title">
   <h1>Request for Cashless Hospitalisation for Health Insurance</h1>
   <h2>Policy Part &ndash; C (Revised) &mdash; Pre-Authorization Summary</h2>
